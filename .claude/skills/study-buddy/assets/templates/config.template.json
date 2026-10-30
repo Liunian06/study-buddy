@@ -1,0 +1,29 @@
+{
+  "engine": "paddle",
+  "oxr": {
+    "base_url": "https://free-oxr.somark.ai/api/v1",
+    "api_key": "dummy",
+    "max_pages_per_chunk": 20,
+    "max_mb_per_chunk": 10,
+    "timeout_seconds": 300,
+    "retry_429_seconds": 30
+  },
+  "paddle": {
+    "base_url": "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs",
+    "api_key": "",
+    "model": "PaddleOCR-VL-1.6",
+    "max_pages_per_chunk": 100,
+    "max_mb_per_chunk": 45,
+    "timeout_seconds": 300,
+    "poll_seconds": 5,
+    "job_timeout_seconds": 1800,
+    "retry_429_seconds": 30
+  },
+  "vlm": {
+    "base_url": "",
+    "model": "",
+    "api_key": "",
+    "min_image_pixels": 64,
+    "timeout_seconds": 120
+  }
+}

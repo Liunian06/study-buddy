@@ -1,0 +1,15 @@
+# 白名单模式：默认忽略所有，只保留 study-buddy skill、官网和发布设施
+/*
+!.gitignore
+!README.md
+!LICENSE
+!.github/
+!site/
+!.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/study-buddy/
+
+__pycache__/
+*.pyc

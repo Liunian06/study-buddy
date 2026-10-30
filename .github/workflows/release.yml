@@ -1,0 +1,92 @@
+name: Release Skill
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.claude/skills/study-buddy/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # 发版（含 workflow_dispatch 补发）成功后刷新官网，使网站跟随新版本
+  site:
+    needs: release
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 读取 skill 版本号
+        id: ver
+        run: |
+          V=$(grep -m1 '^version:' .claude/skills/study-buddy/SKILL.md | awk '{print $2}' | tr -d '\r')
+          if [ -z "$V" ]; then
+            echo "未能从 SKILL.md 读取到 version" >&2
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: 判断 release 是否已存在
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.ver.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 打包并发布
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${{ steps.ver.outputs.version }}"
+          ZIP="study-buddy-v${V}.zip"
+          (cd .claude/skills && zip -r "$GITHUB_WORKSPACE/$ZIP" study-buddy -x '*__pycache__*' '*.pyc')
+
+          # 上一个 tag（首次发版时为空），仅用于生成对比链接
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+
+          # 从 CHANGELOG.md 取出当前版本的段落
+          BODY=$(awk -v v="$V" '
+            /^## \[/ { if (found) exit; if (index($0, "## [" v "]") == 1) { found = 1; next } }
+            found { print }
+          ' .claude/skills/study-buddy/CHANGELOG.md | tr -d '\r' | sed '/./,$!d' | sed -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}')
+          if [ -z "$BODY" ]; then
+            echo "CHANGELOG.md 中没有 [$V] 的更新记录，请先补充再发版" >&2
+            exit 1
+          fi
+
+          {
+            echo "## 更新内容"
+            echo
+            echo "$BODY"
+            echo
+            echo "## 安装"
+            echo
+            echo '推荐用 `npx skills add Liunian06/study-buddy --skill study-buddy -g` 安装，已安装的用户用 `npx skills update study-buddy -g` 更新，详见 [README](https://github.com/${{ github.repository }}#快速开始)。'
+            echo
+            echo "也可以下载下方的 \`$ZIP\`，解压后把 \`study-buddy/\` 目录放进你的 AI 编程助手的 skills 目录（如 \`~/.claude/skills/\`）。"
+            if [ -n "$PREV" ]; then
+              echo
+              echo "**完整对比**：https://github.com/${{ github.repository }}/compare/${PREV}...v${V}"
+            fi
+          } > notes.md
+
+          gh release create "v${V}" "$ZIP" \
+            --target "$GITHUB_SHA" \
+            --title "v${V}" \
+            --notes-file notes.md

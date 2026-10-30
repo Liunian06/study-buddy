@@ -1,0 +1,32 @@
+# 期末速通
+
+根据剩余时间、考点权重和往年题，在考前把所有知识点过一遍。
+
+## 适用条件
+
+- 进入：用户说“后天考试”“考前怎么复习”，或距考试3天以内
+- 不进入：考试或限时测验正在进行中，不代答；距考试还久、想按节学，改去[study-with-notes.md](study-with-notes.md)
+
+## 输入
+
+- 课程名、考试时间、考试形式和范围（可选）
+- 往年题（可选），是文件时交给`ocr_cli.py`解析，类型选往年题
+- 读取该课的`index.md`（考点权重）、`notes/`和`mistakes.md`
+
+## 步骤
+
+1. 检查前提：按[exam-cramming.md](../references/exam-cramming.md)检查。课程还没整理资料时，提示先进[organize-materials.md](organize-materials.md)；只剩1天以内时，让资料整理走精简模式
+2. 诊断：每节出1道题，有往年题时优先用，找出不会的点；剩余时间不到1天时跳过诊断
+3. 分配时间：按“考点权重 × 不熟程度”排序，分两轮，最后留限时模拟，套用[cram-plan.template.md](../assets/templates/cram-plan.template.md)写出速通计划
+4. 确认点：把速通计划给用户看，用户确认或调整后才开始执行
+5. 执行：按计划逐块推进，每块用合上书回忆加做题，往年题按题型混着练；批改后把错题写进`mistakes.md`
+6. 模拟：按往年题结构出一套限时模拟卷，批改后给出预估分数和离及格还差多少，最后给一页考前速记清单
+
+## 产出
+
+- `<YYYY-MM-DD>_cram-plan.md`、模拟卷批改、考前速记清单
+- 更新后的`mistakes.md`
+
+## 分支
+
+- 某一节完全不会、时间又允许：可选跳到[study-with-notes.md](study-with-notes.md)单独补这一节
