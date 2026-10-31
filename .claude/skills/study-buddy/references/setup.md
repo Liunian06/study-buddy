@@ -15,7 +15,7 @@
 
 - Paddle适合整本教材这类大文件。额度用完时（HTTP 403），脚本停止提交后面的块，已完成的块保留，次日重新运行即可补齐
 - 两个引擎可以混用：同一份资料先用一个、失败的块换另一个重跑，草稿格式一样
-- Paddle读取的是它返回的块级JSON（`parsing_res_list`），不是Markdown。好处：页眉、页码、页脚不混进正文；页码块直接记成书页码，草稿标记里写成`p.061 | 书p.46`；公式编号并进公式（`	ag{4.8}`）；图和图注挨在一起。OXR没有这些信息
+- Paddle读取的是它返回的块级JSON（`parsing_res_list`），不是Markdown。好处：页眉、页码、页脚不混进正文；页码块直接记成书页码，草稿标记里写成`p.061 | 书p.46`；公式编号并进公式（`\tag{4.8}`）；图和图注挨在一起。OXR没有这些信息
 - VLM服务（可选）：任何支持图片输入的、兼容OpenAI Chat Completions格式的服务。没有配置时，图片会标为“未转写”，其余照常
 
 ## 安装
@@ -36,7 +36,10 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 
 ## config.json
 
-首次运行`ocr_cli.py`时，会在数据目录（`study-buddy-data/`）生成`config.json`，模板见[config.template.json](../assets/templates/config.template.json)。
+`config.json`在数据目录（`study-buddy-data/`）根部，模板见[config.template.json](../assets/templates/config.template.json)。有两种方式生成，生成后都由用户自己填key：
+
+- **推荐**：首次使用时运行`python scripts/ocr_cli.py --init-config`。只生成配置文件就退出，已存在则不覆盖，这样用户可以先填好key再整理资料，流程见[first-time-setup.md](../workflows/first-time-setup.md)
+- 兜底：没做初始化就直接运行`ocr_cli.py`处理资料时，脚本会自动生成`config.json`，**不会中断**，而是按空配置继续处理：OCR退用OXR，图片标为“未转写”，摘要的`warnings`里提示。用户填好key后重新运行即可补转写
 
 | 字段 | 含义 |
 |---|---|
@@ -71,7 +74,8 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 |---|---|
 | `files` | 一个或多个文件（ppt、pptx、doc、docx、pdf、ipynb），按传入顺序编号 |
 | `--course-dir` | 课程文件夹，输出写在这里 |
-| `--data-dir` | 放`config.json`的数据目录，默认是课程文件夹的上一级 |
+| `--data-dir` | 放`config.json`的数据目录，默认是课程文件夹的上一级；与`--init-config`一起用时默认是当前目录下的`study-buddy-data/` |
+| `--init-config` | 只生成`config.json`（已存在不覆盖）然后退出，不需要传资料文件和`--course-dir` |
 | `--types` | `material`课件/参考资料、`textbook`教材、`past-exam`往年题、`assignment`作业要求；逗号分隔与文件一一对应，或只写一个应用到全部 |
 | `--pages` | 只处理指定页（1起，如`10,17,20-22`），用于测试 |
 | `--engine` | `paddle`或`oxr`，默认取`config.json`的`engine`，没写则用`paddle`。默认引擎是paddle但没填key时，自动退用oxr并在摘要的`warnings`里提示；显式`--engine paddle`又没有key则报错退出 |

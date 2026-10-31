@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 2.0.0
+version: 3.0.0
 ---
 
 # 学习搭子（study-buddy）
@@ -17,6 +17,7 @@ study-buddy/
 ├── SKILL.md
 ├── CHANGELOG.md
 ├── workflows/
+│   ├── first-time-setup.md               # 首次使用
 │   ├── organize-materials.md             # 资料整理
 │   ├── plan-semester.md                  # 学期规划
 │   ├── study-with-notes.md               # 跟课学习
@@ -41,7 +42,8 @@ study-buddy/
 │   └── deliverables.md                   # 提交语言与翻译、图表由agent构建、底稿与提交文件的关系、格式转换
 ├── assets/
 │   ├── templates/
-│   │   ├── semester.template.md          # 学期规划.md
+│   │   ├── semester.template.md          # 学期规划.md（跨课总览）
+│   │   ├── course-info.template.md       # 课程信息.md（单课考核信息）
 │   │   ├── index.template.md             # 讲义目录.md
 │   │   ├── chapter.template.md           # 一节讲义
 │   │   ├── mistakes.template.md          # 错题本
@@ -54,6 +56,7 @@ study-buddy/
 │   │   └── config.template.json          # config.json：OCR引擎（OXR、Paddle）与VLM接口配置
 │   ├── examples/
 │   │   ├── semester_example.md           # 4门课的学期规划.md示例
+│   │   ├── course-info_example.md        # 一门课的课程信息.md示例
 │   │   └── chapter_example.md            # 一节完整讲义示例
 │   └── prompts/
 │       └── vlm-image.md                  # VLM图片转写的固定指令，由ocr_cli.py读取
@@ -69,10 +72,11 @@ study-buddy/
 ```
 study-buddy-data/
 ├── config.json                           # OCR引擎和VLM的接口配置，含各key，由用户自己填写
-├── 学期规划.md                           # 当前学期：课程清单、及格路径、每周清单
+├── 学期规划.md                           # 当前学期总览：课程清单、截止时间、每周清单
 └── 0101_微观经济学/                       # <学期号2位><课程序号2位>_<课程名>
     ├── 原始资料/                          # 用户放入的原件，只读不改
     ├── 课程资料/                          # 整理后的副本（复制并改名），ocr_cli.py读这里
+    ├── 课程信息.md                        # 评分构成、考核表、已得成绩、及格路径
     ├── 讲义目录.md                        # 讲义目录、知识结构、考点权重、学习进度
     ├── 错题本.md                          # 错题本
     ├── manifest.json                     # 中间文件：资料序号、类型、课程资料路径、处理状态
@@ -91,8 +95,9 @@ study-buddy-data/
 
 | 工作流 | 触发条件 | 产出 | 文件 |
 |---|---|---|---|
+| 首次使用 | “帮我初始化”“第一次用”“怎么开始”，或工作目录下没有`study-buddy-data/` | 环境检查结果、`config.json`、空的`学期规划.md` | [first-time-setup.md](workflows/first-time-setup.md) |
 | 资料整理 | 老师发了一堆课件、参考资料、往年题，或直接丢来一本教材，要整理 | 讲义`讲义/`、`讲义目录.md` | [organize-materials.md](workflows/organize-materials.md) |
-| 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格” | `学期规划.md`里的及格路径和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
+| 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格” | 各课`课程信息.md`里的及格路径，`学期规划.md`里的总览和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
 | 跟课学习 | “带我学下一节”“讲讲第三节” | 讲解、小测批改、错题本 | [study-with-notes.md](workflows/study-with-notes.md) |
 | 期末速通 | “后天考试”“考前怎么复习” | 速通计划、模拟卷批改、考前速记清单 | [cram-for-exam.md](workflows/cram-for-exam.md) |
 | Presentation | “下周要做pre”“小组pre我负责第三部分” | pre底稿和pptx | [prepare-presentation.md](workflows/prepare-presentation.md) |
@@ -101,6 +106,7 @@ study-buddy-data/
 
 选择规则：
 
+- 用户第一次用本skill、工作目录下没有`study-buddy-data/`，或说“初始化”：先进首次使用，做完后再按用户的需求继续
 - 一门课第一次使用：先进资料整理，带学和速通都要用到它产出的讲义。用户没整理资料就直接问带学、速通或作业时，先提示并跳转到资料整理（作业类可以在没有讲义时先做，但会缺课程理论依据，要告诉用户）
 - 考试只剩3天以内：进期末速通，不再走完整的跟课学习
 - 作业是pre走Presentation，是论文走课程论文，其余（case study、task、报告、习题）走完成作业

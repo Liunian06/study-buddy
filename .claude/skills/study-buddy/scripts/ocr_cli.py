@@ -767,15 +767,26 @@ def ranges(pages):
 
 def main():
     ap = argparse.ArgumentParser(description="课件、资料转Markdown草稿（OXR或Paddle，加VLM）")
-    ap.add_argument("files", nargs="+", help="一个或多个文件，按传入顺序编号")
-    ap.add_argument("--course-dir", required=True, help="课程文件夹，如study-buddy-data/0101_微观经济学")
-    ap.add_argument("--data-dir", help="数据目录，放config.json；默认为课程文件夹的上一级")
+    ap.add_argument("files", nargs="*", help="一个或多个文件，按传入顺序编号；--init-config时不需要")
+    ap.add_argument("--course-dir", help="课程文件夹，如study-buddy-data/0101_微观经济学；--init-config时不需要")
+    ap.add_argument("--data-dir", help="数据目录，放config.json；默认为课程文件夹的上一级，--init-config时默认为./study-buddy-data")
+    ap.add_argument("--init-config", action="store_true",
+                    help="只在数据目录里生成config.json（已存在则不动）然后退出，用于首次使用时先让用户填key")
     ap.add_argument("--types", default="material",
                     help="material/textbook/past-exam/assignment，逗号分隔与files一一对应，或只写一个应用到全部")
     ap.add_argument("--pages", help="只处理这些页（1起，如10,17,20-22），用于测试；多份文件时应用到每份")
     ap.add_argument("--engine", choices=sorted(ENGINES), help="OCR引擎；默认取config.json的engine，没写则用paddle，paddle没填key时退用oxr")
     ap.add_argument("--keep-temp", action="store_true", help="保留临时PDF和切块")
     args = ap.parse_args()
+
+    if args.init_config:
+        data_dir = Path(args.data_dir).resolve() if args.data_dir else Path("study-buddy-data").resolve()
+        _, created = load_config(data_dir)
+        print(json.dumps({"data_dir": str(data_dir), "config": str(data_dir / "config.json"), "created": created},
+                         ensure_ascii=False, indent=2))
+        sys.exit(0)
+    if not args.files or not args.course_dir:
+        fail_env("需要传入资料文件和--course-dir（只生成配置文件时用--init-config）")
 
     course_dir = Path(args.course_dir).resolve()
     data_dir = Path(args.data_dir).resolve() if args.data_dir else course_dir.parent
