@@ -46,7 +46,7 @@
 
 - 每一块都用“合上书回忆加做题”，不重读讲义
 - 往年题按题型混着练（交错），不要一类题做完再做下一类
-- 批改后，错题按[mistakes.template.md](../assets/templates/mistakes.template.md)写进`mistakes.md`，同一点反复错的标次数
+- 批改后，错题按[mistakes.template.md](../assets/templates/mistakes.template.md)写进`错题本.md`，同一点反复错的标次数
 - 完全不会且时间允许的节，可以回到[guided-study.md](guided-study.md)的方法单独补讲
 
 ## 模拟

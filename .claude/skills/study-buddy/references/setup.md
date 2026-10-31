@@ -96,7 +96,7 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 - `ocr_cli.py`访问所选的OCR接口和（配置后）VLM服务；引擎返回的图片链接会被下载到本地
 - `check_update.py`访问`api.github.com`查询最新版本，只读，不上传任何数据
 - 转换Office文件时会启动PowerPoint或Word的后台实例，完成后退出；已打开同名文件时可能冲突，先关闭
-- 脚本只写课程文件夹和数据目录，不修改原始课件
+- 脚本只写课程文件夹和数据目录，不修改`原始资料/`里的原件；它读取的是`课程资料/`里的副本
 
 ## 常见安装问题
 

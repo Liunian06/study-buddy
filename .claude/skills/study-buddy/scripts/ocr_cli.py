@@ -498,7 +498,7 @@ def vlm_text_block(entry):
 def assemble(mat, course_dir, manifest_imgs):
     """用缓存的块JSON+图片记录组装草稿。返回(markdown, 页数, 失败页列表)"""
     out, failed_pages, n_pages = [], [], 0
-    media_rel = f"../media/{mat['dirname']}"
+    media_rel = f"../媒体/{mat['dirname']}"
     for ci, ch in enumerate(mat["chunks"]):
         if ch["status"] != "ok":
             for p in ch["pages"]:
@@ -539,13 +539,13 @@ def assemble(mat, course_dir, manifest_imgs):
 def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine):
     ecfg = cfg[engine]
     parse = ENGINES[engine]
-    media_dir = course_dir / "media" / mat["dirname"]
-    cache_dir = course_dir / ".cache" / mat["id"]
+    media_dir = course_dir / "媒体" / mat["dirname"]
+    cache_dir = course_dir / ".缓存" / mat["id"]
     cache_dir.mkdir(parents=True, exist_ok=True)
     max_pages = ecfg["max_pages_per_chunk"]
 
     def new_chunk(p):
-        return {"pages": p, "status": "pending", "cache": f".cache/{mat['id']}/p{p[0]:04d}.json", "error": None}
+        return {"pages": p, "status": "pending", "cache": f".缓存/{mat['id']}/p{p[0]:04d}.json", "error": None}
 
     if not mat.get("chunks"):
         pl = plan_chunks(fitz, src_pdf, pages, max_pages, int(ecfg["max_mb_per_chunk"] * 1024 * 1024 * 0.98), work_dir)
@@ -621,7 +621,7 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
 
 def process_ipynb_material(mat, src, course_dir, cfg):
     """ipynb本地解析，图像输出另存到media。返回草稿正文，同时登记mat['images']"""
-    media_dir = course_dir / "media" / mat["dirname"]
+    media_dir = course_dir / "媒体" / mat["dirname"]
     nb = json.loads(src.read_text(encoding="utf-8"))
     cells = nb.get("cells", [])
     imgs = mat.setdefault("images", {})
@@ -649,7 +649,7 @@ def process_ipynb_material(mat, src, course_dir, cfg):
                     raw = "".join(raw) if isinstance(raw, list) else raw
                     (media_dir / f"{key}.png").write_bytes(base64.b64decode(raw))
                     imgs.setdefault(key, {})["file"] = f"{key}.png"
-                    parts.append(f"![{key}](../media/{mat['dirname']}/{key}.png)\n\n@@IMG:{key}@@")
+                    parts.append(f"![{key}](../媒体/{mat['dirname']}/{key}.png)\n\n@@IMG:{key}@@")
                 elif "text/plain" in d:
                     txt = d["text/plain"]
                     parts.append("输出：\n```\n" + ("".join(txt) if isinstance(txt, list) else txt).rstrip() + "\n```")
@@ -659,7 +659,7 @@ def process_ipynb_material(mat, src, course_dir, cfg):
 
 
 def run_vlm(mat, course_dir, vlm, manifest, cfg):
-    media_dir = course_dir / "media" / mat["dirname"]
+    media_dir = course_dir / "媒体" / mat["dirname"]
     cache = manifest.setdefault("vlm_cache", {})
     min_px = cfg["vlm"].get("min_image_pixels", 64)
     for key, e in mat.get("images", {}).items():
@@ -693,7 +693,7 @@ def run_vlm(mat, course_dir, vlm, manifest, cfg):
 
 def verify_and_summarize(mat, course_dir, expected_pages):
     from PIL import Image
-    media_dir = course_dir / "media" / mat["dirname"]
+    media_dir = course_dir / "媒体" / mat["dirname"]
     problems = []
     imgs = mat.get("images", {})
     broken = 0
@@ -720,7 +720,7 @@ def verify_and_summarize(mat, course_dir, expected_pages):
         "status": status, "pages": expected_pages, "failed_pages": ranges(failed_pages),
         "images": len(imgs), "images_broken": broken,
         "transcribed": transcribed, "untranscribed": untranscribed, "vlm_failed": vlm_failed,
-        "draft": f"drafts/{mat['dirname']}.md",
+        "draft": f"草稿/{mat['dirname']}.md",
         "page_offset": estimate_offset(mat, course_dir),
         "engines": sorted({c.get("engine", "oxr") for c in mat["chunks"] if c["status"] == "ok"}),
         "ocr_seconds": round(sum(c.get("seconds", 0) for c in mat["chunks"])),
@@ -815,7 +815,7 @@ def main():
         warnings.append("VLM未配置，图片全部标为“未转写”；填好config.json后重新运行即可补转写")
 
     course_dir.mkdir(parents=True, exist_ok=True)
-    for sub in ("drafts", "media", "notes"):
+    for sub in ("原始资料", "课程资料", "草稿", "媒体", "讲义"):
         (course_dir / sub).mkdir(exist_ok=True)
     mpath = course_dir / "manifest.json"
     manifest = json.loads(mpath.read_text(encoding="utf-8")) if mpath.exists() else {"version": 1, "materials": []}
@@ -831,8 +831,8 @@ def main():
             manifest["materials"].append(mat)
         mat["type"] = tp
         log(f"[{mat['id']}] {f.name}（{TYPE_NAMES[tp]}）")
-        draft_path = course_dir / "drafts" / f"{mat['dirname']}.md"
-        work_dir = course_dir / ".work" / mat["id"]
+        draft_path = course_dir / "草稿" / f"{mat['dirname']}.md"
+        work_dir = course_dir / ".临时" / mat["id"]
         work_dir.mkdir(parents=True, exist_ok=True)
 
         stale = {"failed", "pending"} if vlm.enabled else {"failed"}
@@ -841,7 +841,7 @@ def main():
         if done:
             log("  已完成，跳过")
             summary.append({"id": mat["id"], "name": mat["name"], "status": "skipped（已完成）",
-                            "draft": f"drafts/{mat['dirname']}.md"})
+                            "draft": f"草稿/{mat['dirname']}.md"})
             continue
 
         try:
@@ -889,7 +889,7 @@ def main():
         mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
 
     mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
-    work_root = course_dir / ".work"
+    work_root = course_dir / ".临时"
     if work_root.exists() and not any(work_root.iterdir()):
         work_root.rmdir()
     out = {"course_dir": str(course_dir), "warnings": warnings, "materials": summary}

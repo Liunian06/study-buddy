@@ -17,7 +17,7 @@
 |---|---|---|
 | 讲义里某页写着“资料缺失” | OCR解析该页失败 | 重新运行`ocr_cli.py`，只会重试失败的块；仍失败时告诉用户该页内容缺失，请用户手动补充 |
 | 讲义里图下写着“未转写”，且图是重点 | VLM未配置或调用失败 | 填好`config.json`后重新运行；不要凭图片周围的文字编造图意 |
-| 课程文件夹编号不对 | `semester.md`丢失或学期号错 | 问用户当前学期，按[data-layout.md](data-layout.md)修正，已有文件夹不改名 |
+| 课程文件夹编号不对 | `学期规划.md`丢失或学期号错 | 问用户当前学期，按[data-layout.md](data-layout.md)修正，已有文件夹不改名 |
 | 摘要警告“默认引擎是paddle，但key还没填”，处理很慢或OXR频繁报“已有任务在进行” | 没填Paddle key，退用了OXR；免费OXR同一时间只处理一个任务，约5秒一页 | 申请key填进`config.json`的`paddle.api_key`，见[setup.md](setup.md) |
 | 没有Office的电脑上转不了PPT | COM依赖Office | 请用户手动另存为PDF后再交给脚本 |
 | 生成的pptx没有样式 | 脚本不套模板，只用默认主题 | 属预期；用户在PowerPoint里套学校模板 |
