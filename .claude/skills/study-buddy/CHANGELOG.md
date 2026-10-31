@@ -2,6 +2,13 @@
 
 study-buddy的版本记录。版本号规则：主版本.次版本.修订号。
 
+## [1.0.1] - 2026-10-30
+
+### 变更
+
+- `config.template.json`补充示例值：`vlm`的`base_url`为`https://api.openai.com/v1`、`model`为`gpt-4o`，`vlm.api_key`为`sk-123`，`paddle.api_key`为`paddle-token-123`
+- `ocr_cli.py`把示例key视为没填：VLM不启用，默认引擎仍会在没有真实paddle key时退用OXR
+
 ## [1.0.0] - 2026-10-29
 
 ### 新增

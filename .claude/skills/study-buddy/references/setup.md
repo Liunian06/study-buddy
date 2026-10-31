@@ -41,15 +41,15 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 | 字段 | 含义 |
 |---|---|
 | `engine` | 默认引擎，`paddle`或`oxr`，模板里是`paddle`；命令行的`--engine`优先 |
-| `paddle.api_key` | 用户自己申请的key。不填时默认引擎退用OXR |
+| `paddle.api_key` | 用户自己申请的key。模板里是示例值`paddle-token-123`；不填或保留示例值时，默认引擎退用OXR |
 | `paddle.model` | 默认`PaddleOCR-VL-1.6`，能输出带公式和表格的Markdown。`PP-OCRv6`只返回带框的图，没有文字，不适用 |
 | `paddle.max_pages_per_chunk`、`paddle.max_mb_per_chunk` | 单块页数和大小上限，默认100页、45MB |
 | `oxr.base_url` | OXR接口地址，默认免费接口；改用正式版时换成正式地址 |
 | `oxr.api_key` | 免费接口填`dummy`；正式版填自己的key |
 | `oxr.max_pages_per_chunk`、`oxr.max_mb_per_chunk` | 单块页数和大小上限，默认20页、10MB |
-| `vlm.base_url` | 服务地址，如`https://xxx/v1`，脚本会请求`<base_url>/chat/completions` |
-| `vlm.model` | 模型名，必须支持图片输入 |
-| `vlm.api_key` | 用户自己填写的key |
+| `vlm.base_url` | 服务地址，模板里是示例`https://api.openai.com/v1`，脚本会请求`<base_url>/chat/completions`；用其他兼容服务商时换成它的地址 |
+| `vlm.model` | 模型名，必须支持图片输入；模板里是示例`gpt-4o` |
+| `vlm.api_key` | 用户自己填写的key。模板里是示例值`sk-123`，保留示例值时视为没填，VLM不启用 |
 | `vlm.min_image_pixels` | 图片最短边小于这个值时视为图标，跳过转写，默认64 |
 
 - 图片转写用的固定指令在[vlm-image.md](../assets/prompts/vlm-image.md)，由脚本直接读取；想调整转写风格时改这个文件

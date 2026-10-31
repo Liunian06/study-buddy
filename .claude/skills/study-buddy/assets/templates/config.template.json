@@ -10,7 +10,7 @@
   },
   "paddle": {
     "base_url": "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs",
-    "api_key": "",
+    "api_key": "paddle-token-123",
     "model": "PaddleOCR-VL-1.6",
     "max_pages_per_chunk": 100,
     "max_mb_per_chunk": 45,
@@ -20,9 +20,9 @@
     "retry_429_seconds": 30
   },
   "vlm": {
-    "base_url": "",
-    "model": "",
-    "api_key": "",
+    "base_url": "https://api.openai.com/v1",
+    "model": "gpt-4o",
+    "api_key": "sk-123",
     "min_image_pixels": 64,
     "timeout_seconds": 120
   }

@@ -57,6 +57,7 @@ def parse_pages(spec):
 
 # ---------------------------------------------------------------- 配置
 
+PLACEHOLDER_KEYS = {"sk-123", "paddle-token-123"}  # config.template.json里的示例key
 
 def load_config(data_dir):
     cfg_path = data_dir / "config.json"
@@ -77,6 +78,10 @@ def load_config(data_dir):
                 sec.setdefault(kk, vv)
         else:
             cfg.setdefault(k, v)
+    # 模板里的示例key（sk-123等）只是格式示范，视为没填，不能触发真实请求或挡住引擎回退
+    for sec in ("paddle", "vlm"):
+        if cfg[sec].get("api_key") in PLACEHOLDER_KEYS:
+            cfg[sec]["api_key"] = ""
     return cfg, created
 
 
