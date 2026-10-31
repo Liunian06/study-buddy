@@ -16,6 +16,7 @@ import re
 import shutil
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 TYPE_NAMES = {"material": "课件/参考资料", "textbook": "教材", "past-exam": "往年题", "assignment": "作业要求"}
@@ -413,6 +414,14 @@ class Vlm:
     def __init__(self, cfg):
         self.cfg = cfg
         self.enabled = bool(cfg.get("base_url") and cfg.get("model") and cfg.get("api_key"))
+        try:
+            self.max_concurrency = max(1, int(cfg.get("max_concurrency", 10)))
+        except (TypeError, ValueError):
+            self.max_concurrency = 10
+        try:
+            self.max_attempts = max(1, int(cfg.get("max_attempts", 3)))
+        except (TypeError, ValueError):
+            self.max_attempts = 3
         self.prompt = (SKILL_DIR / "assets" / "prompts" / "vlm-image.md").read_text(encoding="utf-8")
 
     def transcribe(self, path):
@@ -435,7 +444,7 @@ class Vlm:
         url = self.cfg["base_url"].rstrip("/") + "/chat/completions"
         headers = {"Authorization": f"Bearer {self.cfg['api_key']}"}
         last = None
-        for attempt in range(3):
+        for attempt in range(self.max_attempts):
             try:
                 r = requests.post(url, json=payload, headers=headers, timeout=self.cfg.get("timeout_seconds", 120))
                 if r.status_code != 200:
@@ -444,7 +453,8 @@ class Vlm:
                 return (text or "").strip()
             except Exception as e:  # noqa: BLE001
                 last = e
-                time.sleep(2 * (attempt + 1))
+                if attempt + 1 < self.max_attempts:
+                    time.sleep(2 * (attempt + 1))
         raise RuntimeError(str(last))
 
 
@@ -662,6 +672,8 @@ def run_vlm(mat, course_dir, vlm, manifest, cfg):
     media_dir = course_dir / "媒体" / mat["dirname"]
     cache = manifest.setdefault("vlm_cache", {})
     min_px = cfg["vlm"].get("min_image_pixels", 64)
+    # 第一步（主线程）：分类，筛出真正需要请求的图片，相同内容的图片只请求一次
+    todo = {}  # hash -> [(key, entry, path)]
     for key, e in mat.get("images", {}).items():
         if not e.get("file"):
             continue
@@ -679,16 +691,33 @@ def run_vlm(mat, course_dir, vlm, manifest, cfg):
         if h in cache:
             e["vlm"], e["text"] = "ok", cache[h]
             continue
-        log(f"  VLM转写：{key}")
-        try:
-            txt = vlm.transcribe(path)
-            if not txt:
-                raise RuntimeError("空结果")
-            cache[h] = txt
-            e["vlm"], e["text"] = "ok", txt
-        except Exception as ex:  # noqa: BLE001
-            e["vlm"] = "failed"
-            e["vlm_error"] = str(ex)[:150]
+        todo.setdefault(h, []).append((key, e, path))
+    if not todo:
+        return
+
+    def work(path):
+        txt = vlm.transcribe(path)
+        if not txt:
+            raise RuntimeError("空结果")
+        return txt
+
+    # 第二步：线程池并发请求，最多max_concurrency个请求同时在途；manifest只在主线程里改
+    workers = max(1, min(vlm.max_concurrency, len(todo)))
+    log(f"  VLM转写：{sum(len(v) for v in todo.values())}张图，并发{workers}")
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = {pool.submit(work, items[0][2]): (h, items) for h, items in todo.items()}
+        for fut in as_completed(futures):
+            h, items = futures[fut]
+            try:
+                txt = fut.result()
+                cache[h] = txt
+                for _, e, _ in items:
+                    e["vlm"], e["text"] = "ok", txt
+            except Exception as ex:  # noqa: BLE001
+                for _, e, _ in items:
+                    e["vlm"] = "failed"
+                    e["vlm_error"] = str(ex)[:150]
+            log(f"  VLM转写完成：{items[0][0]}")
 
 
 def verify_and_summarize(mat, course_dir, expected_pages):

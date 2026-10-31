@@ -24,6 +24,8 @@
     "model": "gpt-4o",
     "api_key": "sk-123",
     "min_image_pixels": 64,
+    "max_concurrency": 10,
+    "max_attempts": 3,
     "timeout_seconds": 120
   }
 }

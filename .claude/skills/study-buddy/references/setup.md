@@ -54,6 +54,8 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 | `vlm.model` | 模型名，必须支持图片输入；模板里是示例`gpt-4o` |
 | `vlm.api_key` | 用户自己填写的key。模板里是示例值`sk-123`，保留示例值时视为没填，VLM不启用 |
 | `vlm.min_image_pixels` | 图片最短边小于这个值时视为图标，跳过转写，默认64 |
+| `vlm.max_concurrency` | 同时在途的VLM请求数上限，默认10，用线程池实现（不是分批）；服务商限流（HTTP 429）时调小，最小为1 |
+| `vlm.max_attempts` | 单张图片请求失败后的重试上限，按总尝试次数计（含第一次），默认3，最小为1（不重试）；两次尝试之间依次等2秒、4秒 |
 
 - 图片转写用的固定指令在[vlm-image.md](../assets/prompts/vlm-image.md)，由脚本直接读取；想调整转写风格时改这个文件
 - agent不会询问key，也不读取或复述它（包括`vlm.api_key`和`paddle.api_key`）；脚本的日志和输出里不出现key
