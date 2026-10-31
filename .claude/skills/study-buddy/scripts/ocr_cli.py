@@ -99,7 +99,12 @@ def office_to_pdf(src, out_pdf):
     if ext in OFFICE_PPT:
         app = win32com.client.DispatchEx("PowerPoint.Application")
         try:
-            pres = app.Presentations.Open(src_s, True, False, False)
+            try:
+                pres = app.Presentations.Open(src_s, True, False, False)
+            except Exception as ex:  # noqa: BLE001
+                # 内容有兼容性问题时PowerPoint会弹“尝试修复”，这里改用“打开并修复”再试，用修复后的内容转PDF（原文件不动）
+                log(f"  PowerPoint直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
+                pres = app.Presentations.Open2007(src_s, True, False, False, True)  # OpenAndRepair
             try:
                 pres.SaveAs(out_s, 32)  # ppSaveAsPDF
             finally:
@@ -110,7 +115,12 @@ def office_to_pdf(src, out_pdf):
         app = win32com.client.DispatchEx("Word.Application")
         app.Visible = False
         try:
-            doc = app.Documents.Open(src_s, ReadOnly=True)
+            try:
+                doc = app.Documents.Open(src_s, ReadOnly=True)
+            except Exception as ex:  # noqa: BLE001
+                # 同PPT：直接打开失败后改用“打开并修复”，原文件不动
+                log(f"  Word直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
+                doc = app.Documents.Open(src_s, ReadOnly=True, OpenAndRepair=True)
             try:
                 doc.ExportAsFixedFormat(out_s, 17)  # wdExportFormatPDF
             finally:
