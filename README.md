@@ -80,11 +80,12 @@ npx skills update study-buddy -g
 
 ## 工作流程
 
-skill 包含 8 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SKILL.md)：
+skill 包含 9 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SKILL.md)：
 
 - **首次使用**：检查环境、建数据目录和配置文件、建学期总览和第一门课
 - **资料整理**：课件、教材、往年题转成讲义 `讲义/` 和目录 `讲义目录.md`
 - **学期规划**：每门课的及格路径写进各课的 `课程信息.md`，跨课的总览和每周清单写进 `学期规划.md`
+- **设计学习风格**：用第一个知识点出几种讲法的样张（教科书式、苏格拉底式、故事式），你选一种、混搭或自己设计，讲义和带学都按它来
 - **跟课学习**：按讲义逐节讲解、小测、错题本
 - **期末速通**：速通计划、模拟卷、考前速记清单
 - **Presentation**：pre 底稿、讲稿、Q&A 和 pptx
@@ -103,7 +104,7 @@ skill 包含 8 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SK
 study-buddy/
 ├── SKILL.md        # skill 定义和工作流路由
 ├── CHANGELOG.md    # 版本记录
-├── workflows/      # 8 个工作流
+├── workflows/      # 9 个工作流
 ├── references/     # 各工作流引用的操作细则
 ├── assets/         # 模板、示例、VLM 转写指令
 └── scripts/        # ocr_cli.py、build_pptx.py、convert_submission.py、check_update.py
@@ -117,6 +118,8 @@ study-buddy/
 study-buddy-data/
 ├── config.json              # OCR 引擎和 VLM 的接口配置，含你自己填的 key
 ├── 学期规划.md              # 当前学期总览：课程清单、截止时间、每周清单
+├── 学习偏好.md              # 你选定的讲解风格
+├── 学习风格/                # 你自己设计的风格
 └── 0101_微观经济学/          # <学期号2位><课程序号2位>_<课程名>
     ├── 原始资料/            # 你放入的原始课件，只读不改
     ├── 课程资料/            # 整理后的副本（复制并改名）

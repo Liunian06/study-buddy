@@ -75,16 +75,23 @@
 
 ## 讲义写法
 
-套用[chapter.template.md](../assets/templates/chapter.template.md)，完整示例见[chapter_example.md](../assets/examples/chapter_example.md)。
+套用[chapter.template.md](../assets/templates/chapter.template.md)，完整示例见[textbook_example.md](../assets/examples/styles/textbook_example.md)（默认风格），其他风格见同目录。每节分“讲解”和“查阅”两部分：
 
 - 一节一个知识点，文件名`第NN章_<知识点名>.md`
-- 白话讲解：先用一两句日常语言说清这个知识点解决什么问题，再给术语。像对一个没学过的同学讲，不堆定义
-- 关键术语：英文术语以草稿里的原文为准，写成“English term（中文）”，不自己翻译改写
+
+**讲解**（由用户选定的风格决定，见[style-guide.md](style-guide.md)；没选过时用教科书式）：
+
+- 写法按风格文件“讲义里怎么写”一节，不分固定小标题。各风格对比见`assets/examples/styles/`
+- 教科书式的顺序：先用一两句日常语言说清这个知识点解决什么问题，再给术语。像对一个没学过的同学讲，不堆定义
 - 例子：优先用资料里的例子；资料没有时自己编一个简单例子，不引入产业背景
+- 图：只引用讲义确实用得上的图，用相对路径指向`媒体/`，如`../媒体/001_Lesson_4_Public_Relations/p012_01.png`，并在图下用一句话说明这张图讲什么（取自图片转写）
+
+**查阅**（所有风格一样，模板固定）：
+
+- 关键术语：英文术语以草稿里的原文为准，写成“English term（中文）”，不自己翻译改写
 - 考点：写明这节在考试里可能怎么考、答题抓什么，依据是考点信号，不是猜测
 - 小测：2–4道，题型贴近考试（选择、简答、计算）；附参考答案，答案单独放在节末
 - 出处：资料名加页码，如“Lesson 4 Public Relations，p.10–12”
-- 图：只引用讲义确实用得上的图，用相对路径指向`媒体/`，如`../媒体/001_Lesson_4_Public_Relations/p012_01.png`，并在图下用一句话说明这张图讲什么（取自图片转写）
 - 讲到能答题就停：不讲课程之外的扩展，不讲产业应用，不展开推导的每一步，除非考试要考推导
 - 讲义用简体中文
 

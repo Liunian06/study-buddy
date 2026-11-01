@@ -21,21 +21,22 @@
 4. 处理结果：退出码0直接继续；退出码1时把失败的资料和页码告诉用户，让用户决定是否重新运行（CLI只重试失败的部分）；退出码2时按[setup.md](../references/setup.md)排查环境。摘要里有“未转写”的图时，说明数量，并提示填好`config.json`后重新运行即可补转写
 5. 读草稿：按[material-processing.md](../references/material-processing.md)读`草稿/`，不打开图片；教材按该文件“教材”一节的方法定位小节，不整本通读
 6. 建知识结构：合并重复内容，识别知识点和依赖关系，按先基础后应用重排，标考点信号和权重，得到知识结构和章节划分。有课件时课件定范围、教材补解释；只有教材时按[material-processing.md](../references/material-processing.md)判断怎么切知识点
-7. 确认点：把知识结构、章节划分和考点权重给用户看，用户可以合并、拆分、调整顺序。确认前不写讲义，避免写完再返工
-8. 转写讲义：套用[chapter.template.md](../assets/templates/chapter.template.md)，参照[chapter_example.md](../assets/examples/chapter_example.md)，一个知识点一节，写成`讲义/第NN章_<知识点名>.md`。资料多时分批写，每批报告进度
+7. 确认点：把知识结构、章节划分和考点权重给用户看，用户可以合并、拆分、调整顺序。确认前不写讲义，避免写完再返工。确认后，数据目录里没有`学习偏好.md`时，进入[design-learning-style.md](design-learning-style.md)选定讲解风格，已有就沿用，不重复问
+8. 转写讲义：套用[chapter.template.md](../assets/templates/chapter.template.md)，参照对应风格在`assets/examples/styles/`下的完整示例，一个知识点一节，写成`讲义/第NN章_<知识点名>.md`。每节分“讲解”和“查阅”两部分：“讲解”按`学习偏好.md`里选定的风格写（风格文件在`references/styles/`或数据目录的`学习风格/`），“查阅”（关键术语、考点、小测、出处）所有风格都一样。第一节的“讲解”直接用风格选定时的样张。资料多时分批写，每批报告进度
 9. 建目录：套用[index.template.md](../assets/templates/index.template.md)生成`讲义目录.md`，学习进度初始全部为“未学”，并把资料缺失和未转写的位置写进去
 
 ## 产出
 
 - `讲义/`下的讲义和`讲义目录.md`，给用户看
+- 首次整理时还有`学习偏好.md`（和用户自己设计的`学习风格/`），见[design-learning-style.md](design-learning-style.md)
 - `课程资料/`里整理后的资料副本
 - `manifest.json`、`媒体/`、`草稿/`是中间文件，只给模型用
 - `学期规划.md`的课程清单里登记了这门课（信息状态写“缺评分构成”），课程文件夹里有空的`课程信息.md`
 
 ## 分支
 
-- 补充资料：只把新文件交给CLI，已完成的资料按manifest自动跳过；新知识点插进已有结构，需要给已有讲义重新编号时，先列出受影响的文件，用户确认后再改
-- 时间很紧：从期末速通跳来、且距考试1天以内时，做到第6步，只产出`讲义目录.md`和考点清单，不写完整讲义，见[material-processing.md](../references/material-processing.md)的精简模式
+- 补充资料：只把新文件交给CLI，已完成的资料按manifest自动跳过；新知识点插进已有结构，需要给已有讲义重新编号时，先列出受影响的文件，用户确认后再改；新写的讲义沿用`学习偏好.md`里的风格
+- 时间很紧：从期末速通跳来、且距考试1天以内时，做到第6步，只产出`讲义目录.md`和考点清单，不写完整讲义，也不进入风格选择，见[material-processing.md](../references/material-processing.md)的精简模式
 
 ## 后续（可选）
 

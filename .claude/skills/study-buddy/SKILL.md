@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.2.0
+version: 3.3.0
 ---
 
 # 学习搭子（study-buddy）
@@ -20,6 +20,7 @@ study-buddy/
 │   ├── first-time-setup.md               # 首次使用
 │   ├── organize-materials.md             # 资料整理
 │   ├── plan-semester.md                  # 学期规划
+│   ├── design-learning-style.md          # 设计学习风格
 │   ├── study-with-notes.md               # 跟课学习
 │   ├── cram-for-exam.md                  # 期末速通
 │   ├── prepare-presentation.md           # Presentation
@@ -34,6 +35,11 @@ study-buddy/
 │   ├── material-processing.md            # 范围确认、草稿与图片转写的读法、知识结构重排、考点信号、讲义写法
 │   ├── semester-planning.md              # 截止时间倒排、风险排序、每周负荷
 │   ├── guided-study.md                   # 讲解深度、看不懂时怎么换讲法、小测题型、错题记录
+│   ├── style-guide.md                    # 学习风格的格式、位置、不能改的边界、怎么引导用户设计
+│   ├── styles/
+│   │   ├── textbook.md                   # 教科书式（默认）
+│   │   ├── socratic.md                   # 苏格拉底式
+│   │   └── story.md                      # 故事式
 │   ├── exam-cramming.md                  # 诊断、时间分配、检索/间隔/交错练习、往年题、模拟
 │   ├── presentation.md                   # 评分维度、结构、页数与时长、讲稿、Q&A
 │   ├── course-paper.md                   # 论文结构、GB/T 7714、文献检索与核实
@@ -45,7 +51,8 @@ study-buddy/
 │   │   ├── semester.template.md          # 学期规划.md（跨课总览）
 │   │   ├── course-info.template.md       # 课程信息.md（单课考核信息）
 │   │   ├── index.template.md             # 讲义目录.md
-│   │   ├── chapter.template.md           # 一节讲义
+│   │   ├── chapter.template.md           # 一节讲义（讲解 + 查阅两部分）
+│   │   ├── preference.template.md        # 学习偏好.md
 │   │   ├── mistakes.template.md          # 错题本
 │   │   ├── cram-plan.template.md         # 速通计划
 │   │   ├── presentation.template.md      # pre结构、PPT大纲、讲稿、Q&A
@@ -57,7 +64,10 @@ study-buddy/
 │   ├── examples/
 │   │   ├── semester_example.md           # 4门课的学期规划.md示例
 │   │   ├── course-info_example.md        # 一门课的课程信息.md示例
-│   │   └── chapter_example.md            # 一节完整讲义示例
+│   │   └── styles/                       # 三份完整的一节讲义示例，同一知识点（价格弹性），只有“讲解”不同
+│   │       ├── textbook_example.md       # 教科书式
+│   │       ├── socratic_example.md       # 苏格拉底式
+│   │       └── story_example.md          # 故事式
 │   └── prompts/
 │       └── vlm-image.md                  # VLM图片转写的固定指令，由ocr_cli.py读取
 └── scripts/
@@ -73,6 +83,8 @@ study-buddy/
 study-buddy-data/
 ├── config.json                           # OCR引擎和VLM的接口配置，含各key，由用户自己填写
 ├── 学期规划.md                           # 当前学期总览：课程清单、截止时间、每周清单
+├── 学习偏好.md                           # 当前讲解风格和用户补充的要求，所有课共用
+├── 学习风格/                              # 用户自己设计的风格文件（放这里，skill更新不会丢）
 └── 0101_微观经济学/                       # <学期号2位><课程序号2位>_<课程名>
     ├── 原始资料/                          # 用户放入的原件，只读不改
     ├── 课程资料/                          # 整理后的副本（复制并改名），ocr_cli.py读这里
@@ -98,6 +110,7 @@ study-buddy-data/
 | 首次使用 | “帮我初始化”“第一次用”“怎么开始”，或工作目录下没有`study-buddy-data/` | 环境检查结果、`config.json`、空的`学期规划.md` | [first-time-setup.md](workflows/first-time-setup.md) |
 | 资料整理 | 老师发了一堆课件、参考资料、往年题，或直接丢来一本教材，要整理 | 讲义`讲义/`、`讲义目录.md` | [organize-materials.md](workflows/organize-materials.md) |
 | 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格” | 各课`课程信息.md`里的及格路径，`学期规划.md`里的总览和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
+| 设计学习风格 | “换个讲法”“我想自己设计学习风格”“这样讲我不喜欢”；资料整理确认完知识结构、还没有`学习偏好.md`时自动进入 | `学习偏好.md`，用户自己设计的`学习风格/<名称>.md`，第一节的样张 | [design-learning-style.md](workflows/design-learning-style.md) |
 | 跟课学习 | “带我学下一节”“讲讲第三节” | 讲解、小测批改、错题本 | [study-with-notes.md](workflows/study-with-notes.md) |
 | 期末速通 | “后天考试”“考前怎么复习” | 速通计划、模拟卷批改、考前速记清单 | [cram-for-exam.md](workflows/cram-for-exam.md) |
 | Presentation | “下周要做pre”“小组pre我负责第三部分” | pre底稿和pptx | [prepare-presentation.md](workflows/prepare-presentation.md) |
@@ -108,7 +121,8 @@ study-buddy-data/
 
 - 用户第一次用本skill、工作目录下没有`study-buddy-data/`，或说“初始化”：先进首次使用，做完后再按用户的需求继续
 - 一门课第一次使用：先进资料整理，带学和速通都要用到它产出的讲义。用户没整理资料就直接问带学、速通或作业时，先提示并跳转到资料整理（作业类可以在没有讲义时先做，但会缺课程理论依据，要告诉用户）
-- 考试只剩3天以内：进期末速通，不再走完整的跟课学习
+- 考试只剩3天以内：进期末速通，不再走完整的跟课学习；风格一律直讲
+- 用户嫌讲法不对（“太绕了”“看着没感觉”“换个讲法”）：进设计学习风格；只是某个概念没听懂，不进，按跟课学习里的换讲法处理
 - 作业是pre走Presentation，是论文走课程论文，其余（case study、task、报告、习题）走完成作业
 - 用户只说“这门课怎么办”“我快挂了”这类笼统的话：进学期规划
 
@@ -159,4 +173,5 @@ study-buddy-data/
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)
 - `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令，需要把提示转告用户，由用户决定是否更新。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭
+- 写讲义、带学、设计学习风格时，读[style-guide.md](references/style-guide.md)了解风格的格式和不能改的边界
 - 其余reference、模板、示例由各workflow在对应步骤指定
