@@ -82,6 +82,11 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 | `--pages` | 只处理指定页（1起，如`10,17,20-22`），用于测试 |
 | `--engine` | `paddle`或`oxr`，默认取`config.json`的`engine`，没写则用`paddle`。默认引擎是paddle但没填key时，自动退用oxr并在摘要的`warnings`里提示；显式`--engine paddle`又没有key则报错退出 |
 | `--keep-temp` | 保留临时PDF和切块 |
+| `--dry-run` | 只预估不处理，输出每份资料的页数、将用的引擎和OCR耗时范围，然后退出（退出码0）。不联网、不用key、不改`manifest.json`、不生成`config.json` |
+
+- `--dry-run`的速度假设：Paddle按30–50页/分钟（用户给出），OXR按约12页/分钟（约5秒一页，单次实测）。只估OCR解析；Office转PDF、图片转写（VLM）、下载图片的时间不计入，所以实际总耗时会比预估长，图片多时尤其明显
+- PPT和Word没有页数，`--dry-run`要先转成PDF才能数页，每份要几十秒。转出的PDF缓存在`<课程文件夹>/.临时/预转换/`（键含路径、修改时间和大小，文件改过会重转），正式运行直接复用，处理成功后自动删除
+- 摘要里已完成的资料标“跳过（已完成）”，中断过的标“续跑”，只算没完成的块；ipynb不走OCR，只报单元格数
 
 - 退出码：0全部成功；1部分失败（某块解析失败、图片下载失败或图片转写失败），重新运行只会重试失败的部分；2参数或环境错误
 - 已完成的资料会自动跳过；配置好VLM后重新运行，只补转写没转写的图

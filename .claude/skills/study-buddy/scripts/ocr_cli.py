@@ -60,14 +60,18 @@ def parse_pages(spec):
 
 PLACEHOLDER_KEYS = {"sk-123", "paddle-token-123"}  # config.template.json里的示例key
 
-def load_config(data_dir):
+def load_config(data_dir, create=True):
+    """create=False时config.json不存在也不生成文件，直接按模板默认值返回（--dry-run用）"""
     cfg_path = data_dir / "config.json"
     created = False
     if not cfg_path.exists():
         tpl = SKILL_DIR / "assets" / "templates" / "config.template.json"
-        data_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(tpl, cfg_path)
-        created = True
+        if create:
+            data_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tpl, cfg_path)
+            created = True
+        else:
+            cfg_path = tpl
     with open(cfg_path, encoding="utf-8") as f:
         cfg = json.load(f)
     with open(SKILL_DIR / "assets" / "templates" / "config.template.json", encoding="utf-8") as f:
@@ -129,6 +133,23 @@ def office_to_pdf(src, out_pdf):
             app.Quit()
     if not out_pdf.exists():
         raise RuntimeError("Office未生成PDF")
+
+
+def cached_office_pdf(src, course_dir):
+    """Office文件转PDF，结果缓存在课程文件夹的.临时/预转换/。
+    缓存键含路径、修改时间和大小，文件改过就重新转；--dry-run和正式运行共用，避免转两遍"""
+    st = src.stat()
+    key = hashlib.sha1(f"{src.resolve()}|{st.st_mtime_ns}|{st.st_size}".encode("utf-8")).hexdigest()[:16]
+    pdf = course_dir / ".临时" / "预转换" / f"{key}.pdf"
+    if pdf.exists() and pdf.stat().st_size > 0:
+        log(f"  复用已转换的PDF：{src.name}")
+        return pdf
+    pdf.parent.mkdir(parents=True, exist_ok=True)
+    log(f"  转PDF（Office COM）：{src.name}")
+    tmp = pdf.with_suffix(".part.pdf")
+    office_to_pdf(src, tmp)
+    tmp.replace(pdf)  # 转换成功才落盘，中断不会留下半截缓存
+    return pdf
 
 
 def make_chunk_pdf(fitz, src_pdf, pages, out_path):
@@ -803,6 +824,74 @@ def ranges(pages):
 
 # ---------------------------------------------------------------- 主流程
 
+# 各引擎每分钟处理页数（下限，上限）。paddle为用户给出的实测速度；oxr约5秒一页，取单一值
+SPEED_PPM = {"paddle": (30, 50), "oxr": (12, 12)}
+
+
+def is_done(mat, draft_path, vlm):
+    """这份资料是否已完整处理（草稿在、图片转写没有待补的）"""
+    stale = {"failed", "pending"} if vlm.enabled else {"failed"}
+    return (mat.get("status") == "ok" and draft_path.exists()
+            and not any(e.get("vlm") in stale for e in mat.get("images", {}).values()))
+
+
+def fmt_minutes(pages, engine):
+    if pages <= 0:
+        return "0分钟"
+    lo_ppm, hi_ppm = SPEED_PPM[engine]
+    lo, hi = max(1, round(pages / hi_ppm)), max(1, round(pages / lo_ppm))
+    return f"约{lo}分钟" if lo >= hi else f"约{lo}–{hi}分钟"
+
+
+def dry_run(files, types, course_dir, engine, vlm, fitz, sel, warnings):
+    """只读预估：数每份资料的页数，按引擎速度估OCR耗时。不联网、不用key、不改manifest。
+    Office文件要先转PDF才有页数，转出的PDF放进缓存，正式运行直接复用"""
+    mpath = course_dir / "manifest.json"
+    manifest = json.loads(mpath.read_text(encoding="utf-8")) if mpath.exists() else {"materials": []}
+    rows, total = [], 0
+    for f, tp in zip(files, types):
+        row = {"name": f.stem.strip(), "file": f.name, "type": TYPE_NAMES[tp], "format": f.suffix.lower().lstrip(".")}
+        mat = next((m for m in manifest["materials"] if m["source"] == str(f)), None)
+        draft = course_dir / "草稿" / f"{mat['dirname']}.md" if mat else None
+        try:
+            if mat and is_done(mat, draft, vlm):
+                row.update(status="跳过（已完成）", pages=mat.get("pages"), pages_to_ocr=0)
+            elif f.suffix.lower() == ".ipynb":
+                nb = json.loads(f.read_text(encoding="utf-8"))
+                row.update(status="待处理", cells=len(nb.get("cells", [])), pages_to_ocr=0,
+                           note="ipynb在本地解析，不走OCR，几乎不耗时")
+            else:
+                src_pdf = f if f.suffix.lower() == ".pdf" else cached_office_pdf(f, course_dir)
+                doc = fitz.open(str(src_pdf))
+                n = doc.page_count
+                doc.close()
+                pages = [p for p in (sel or range(1, n + 1)) if 1 <= p <= n]
+                chunks = (mat or {}).get("chunks") or []
+                if chunks:  # 之前处理过一部分，只算没完成的块
+                    todo = sum(len(c["pages"]) for c in chunks
+                               if c["status"] != "ok" or not (course_dir / c["cache"]).exists())
+                    row.update(status="续跑", pages=len(pages), pages_to_ocr=todo)
+                else:
+                    row.update(status="待处理", pages=len(pages), pages_to_ocr=len(pages))
+                if row["pages_to_ocr"] == 0:
+                    row["note"] = "解析已完成，只差图片转写"
+        except SystemExit:
+            raise
+        except Exception as e:  # noqa: BLE001
+            row.update(status="无法读取", error=str(e)[:200], pages_to_ocr=0)
+        row["estimate"] = fmt_minutes(row["pages_to_ocr"], engine)
+        total += row["pages_to_ocr"]
+        rows.append(row)
+    lo, hi = SPEED_PPM[engine]
+    out = {
+        "dry_run": True, "engine": engine,
+        "speed": f"{lo}–{hi}页/分钟" if lo != hi else f"约{lo}页/分钟",
+        "materials": rows, "pages_to_ocr": total, "estimate": fmt_minutes(total, engine),
+        "estimate_scope": "只含OCR解析；Office转PDF、图片转写（VLM）、下载图片的时间不计入",
+        "warnings": warnings,
+    }
+    print(json.dumps(out, ensure_ascii=False, indent=2))
+
 
 def main():
     ap = argparse.ArgumentParser(description="课件、资料转Markdown草稿（OXR或Paddle，加VLM）")
@@ -816,6 +905,8 @@ def main():
     ap.add_argument("--pages", help="只处理这些页（1起，如10,17,20-22），用于测试；多份文件时应用到每份")
     ap.add_argument("--engine", choices=sorted(ENGINES), help="OCR引擎；默认取config.json的engine，没写则用paddle，paddle没填key时退用oxr")
     ap.add_argument("--keep-temp", action="store_true", help="保留临时PDF和切块")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="只预估不处理：输出每份资料的页数、引擎和OCR耗时范围；不联网、不改manifest、不生成config.json")
     args = ap.parse_args()
 
     if args.init_config:
@@ -848,12 +939,14 @@ def main():
     except ImportError as e:
         fail_env(f"缺少依赖：{e.name}，见references/setup.md")
 
-    cfg, created = load_config(data_dir)
+    cfg, created = load_config(data_dir, create=not args.dry_run)
     engine = args.engine or cfg.get("engine") or "paddle"
     has_key = bool(cfg["paddle"].get("api_key"))
     warnings = []
     if engine == "paddle" and not has_key:
-        if args.engine == "paddle":  # 用户显式要求paddle但没有key，不悄悄换引擎
+        if args.engine == "paddle" and args.dry_run:  # 预估照常给，正式运行会报错
+            warnings.append("显式指定了paddle但paddle.api_key还没填，正式运行会报错；以下按paddle速度预估")
+        elif args.engine == "paddle":  # 用户显式要求paddle但没有key，不悄悄换引擎
             fail_env(f"使用paddle需要key：到 https://aistudio.baidu.com/paddleocr 申请，填进{data_dir / 'config.json'}的paddle.api_key")
         engine = "oxr"
         warnings.append("默认引擎是paddle，但paddle.api_key还没填，本次退用oxr（慢、同一时间只处理一个任务）；"
@@ -863,6 +956,12 @@ def main():
         warnings.append(f"已生成{data_dir / 'config.json'}，请填写vlm的base_url、model、api_key")
     if not vlm.enabled:
         warnings.append("VLM未配置，图片全部标为“未转写”；填好config.json后重新运行即可补转写")
+
+    if args.dry_run:
+        if not (data_dir / "config.json").exists():
+            warnings.append("数据目录里还没有config.json，按模板默认值预估")
+        dry_run(files, types, course_dir, engine, vlm, fitz, parse_pages(args.pages) if args.pages else None, warnings)
+        sys.exit(0)
 
     course_dir.mkdir(parents=True, exist_ok=True)
     for sub in ("原始资料", "课程资料", "草稿", "媒体", "讲义"):
@@ -884,11 +983,9 @@ def main():
         draft_path = course_dir / "草稿" / f"{mat['dirname']}.md"
         work_dir = course_dir / ".临时" / mat["id"]
         work_dir.mkdir(parents=True, exist_ok=True)
+        office_cache = None
 
-        stale = {"failed", "pending"} if vlm.enabled else {"failed"}
-        done = (mat.get("status") == "ok" and draft_path.exists()
-                and not any(e.get("vlm") in stale for e in mat.get("images", {}).values()))
-        if done:
+        if is_done(mat, draft_path, vlm):
             log("  已完成，跳过")
             summary.append({"id": mat["id"], "name": mat["name"], "status": "skipped（已完成）",
                             "draft": f"草稿/{mat['dirname']}.md"})
@@ -908,10 +1005,7 @@ def main():
                 if f.suffix.lower() == ".pdf":
                     src_pdf = f
                 else:
-                    src_pdf = work_dir / (f.stem + ".pdf")
-                    if not src_pdf.exists():
-                        log("  转PDF（Office COM）")
-                        office_to_pdf(f, src_pdf)
+                    src_pdf = office_cache = cached_office_pdf(f, course_dir)
                 doc = fitz.open(str(src_pdf))
                 total = doc.page_count
                 doc.close()
@@ -933,6 +1027,8 @@ def main():
 
         if info["status"] == "ok" and not args.keep_temp:
             shutil.rmtree(work_dir, ignore_errors=True)
+            if office_cache:  # 处理成功后不再需要预转换的PDF；失败时保留，重跑直接复用
+                office_cache.unlink(missing_ok=True)
         if info["status"] != "ok":
             any_problem = True
         summary.append(info)
