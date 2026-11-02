@@ -7,6 +7,8 @@
 
 [官网](https://liunian06.github.io/study-buddy/) · [更新日志](.claude/skills/study-buddy/CHANGELOG.md) · [下载](https://github.com/Liunian06/study-buddy/releases/latest)
 
+[联系作者](#联系作者) · [加入社群](#加入社群) · [赞赏支持](#赞赏支持)
+
 </div>
 
 ## 这是什么
@@ -20,7 +22,6 @@
 - 按讲义逐节带学：白话讲解、小测、错题本
 - 考前根据剩余时间和往年题做速通计划、模拟卷和考前速记清单
 - 完成个人或小组的presentation（大纲、讲稿、Q&A、pptx）、课程论文和其他作业，并转成docx或pdf提交
-
 ## 快速开始
 
 ### 方式一：AI 一键安装
@@ -38,7 +39,10 @@
 注意：不要修改我的系统执行策略，不要询问、读取或复述任何 API key。
 ```
 
-### 方式二：手动安装
+<details>
+<summary><b>方式二：手动安装</b>（点击展开）</summary>
+
+<br>
 
 需要 Windows 和已安装的 PowerPoint、Word，[Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
 
@@ -56,7 +60,15 @@ python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 mark
 
 3. 在 AI 编程助手里说一句“帮我初始化”，它会检查环境，在工作目录下建好 `study-buddy-data/` 并生成 `config.json`。按 setup.md 自己填好 OCR 引擎和 VLM 服务的 key，不填 VLM 也能用，只是图片不会被转写。
 
+4. 可选：要整理考试提纲（开卷提纲、小抄、闭卷背诵稿），需要安装 TeX，默认用 MiKTeX，装完重开终端。不整理提纲可以不装：
+
+```bash
+winget install MiKTeX.MiKTeX
+```
+
 也可以在 [Releases](https://github.com/Liunian06/study-buddy/releases/latest) 下载 `study-buddy-v<版本号>.zip`，解压后把 `study-buddy/` 目录放进你的 AI 编程助手的 skills 目录（如 `~/.claude/skills/`）。
+
+</details>
 
 ### 更新
 
@@ -142,6 +154,26 @@ study-buddy-data/
 - 课件会上传到 OCR 引擎（默认百度 Paddle，需要自己申请免费 key；没有 key 时退用 SoMark 的 OXR），图片会发给你配置的 VLM 服务商
 
 遇到问题请在 [Issues](../../issues) 留言。
+
+## 联系作者
+
+想反馈问题、提建议，或者群二维码过期了，可以扫码加作者微信，请备注 study-buddy。问题描述里不要带 `config.json` 里的 key。
+
+<img src=".claude/skills/study-buddy/assets/qrcode/contact.png" alt="作者微信二维码" width="220">
+
+## 加入社群
+
+扫码加入微信群“study-buddy前瞻服”，和其他用户交流用法、反馈问题。
+
+<img src=".claude/skills/study-buddy/assets/qrcode/group-1102.jpg" alt="study-buddy 微信群二维码" width="220">
+
+微信群二维码只有 7 天有效期，扫不出来或提示过期时，请扫上面的作者微信，或者到 [Issues](../../issues) 留言。
+
+## 赞赏支持
+
+如果这个 skill 帮你省了时间，可以请作者喝杯瑞幸。不赞赏也完全不影响使用。
+
+<img src=".claude/skills/study-buddy/assets/qrcode/buymecoffee.png" alt="赞赏码" width="220">
 
 ## 许可协议
 
