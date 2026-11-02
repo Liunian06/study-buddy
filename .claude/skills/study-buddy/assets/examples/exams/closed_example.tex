@@ -1,0 +1,80 @@
+% 闭卷背诵稿示例（微观经济学，全闭卷）。同一份源文件编译两个版本：
+%   python scripts/compile_tex.py closed_example.tex          背诵稿
+%   python scripts/compile_tex.py closed_example.tex --fill   填空版
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{11}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{17}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{22}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlist{nosep,leftmargin=1.6em,itemsep=3pt}
+\ctexset{section={number=\arabic{section},name={,},aftername=\hspace{0.6em},format=\Large\bfseries,beforeskip=14pt,afterskip=6pt},
+         subsection={number=\arabic{section}.\arabic{subsection},name={,},aftername=\hspace{0.5em},format=\large\bfseries,beforeskip=8pt,afterskip=3pt}}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 微观经济学　闭卷背诵稿\ifdefined\SBFILL（填空版）\fi}\\[4pt]
+{\small 考试：2027-01-08　范围：第1讲至第3讲}
+\end{center}
+
+\section{高权重（必背）}
+\subsection{价格弹性}
+\begin{enumerate}
+\item 弹性公式：$E_d=\left|\dfrac{\Delta Q/Q}{\Delta P/P}\right|$，即\kw{需求量变化百分比}除以\kw{价格变化百分比}，取绝对值
+\item $E_d>1$ 叫\kw{富有弹性}；$E_d<1$ 叫\kw{缺乏弹性}；$E_d=1$ 叫\kw{单位弹性}
+\item 总收益 $TR=P\times Q$
+\item 涨价时，富有弹性则总收益\kw{下降}，缺乏弹性则总收益\kw{上升}
+\item 影响弹性的三个因素：\kw{替代品}、\kw{收入比重}、\kw{时间}
+\end{enumerate}
+
+\begin{center}
+\begin{tabular}{@{}lcc@{}}
+\toprule
+ & 富有弹性（$E_d>1$） & 缺乏弹性（$E_d<1$） \\
+\midrule
+涨价后总收益 & \kw{下降} & \kw{上升} \\
+降价后总收益 & \kw{上升} & \kw{下降} \\
+陡还是平 & \kw{平} & \kw{陡} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{需求与供给}
+\begin{enumerate}
+\item \kw{需求定律}：其他条件不变，价格上升，需求量下降
+\item \kw{供给定律}：其他条件不变，价格上升，供给量上升
+\item 均衡条件：$Q_d(P^*)=Q_s(P^*)$
+\item 价格高于均衡价格出现\kw{过剩}，低于均衡价格出现\kw{短缺}
+\item 价格变化引起\kw{沿曲线移动}；收入、偏好、替代品价格变化引起\kw{曲线移动}
+\end{enumerate}
+
+\section{中权重}
+\subsection{消费者剩余}
+\begin{enumerate}
+\item 定义：愿意支付的\kw{最高价格}与\kw{实际价格}之差
+\item 线性需求下：$CS=\dfrac12(P_{\max}-P)Q$
+\item 价格下降，消费者剩余\kw{增加}
+\end{enumerate}
+
+\section{低权重（时间够再背）}
+\subsection{生产者剩余}
+\begin{enumerate}
+\item 价格与\kw{供给曲线}之间的面积
+\item 总剩余$=$\kw{消费者剩余}加生产者剩余
+\end{enumerate}
+
+\end{document}

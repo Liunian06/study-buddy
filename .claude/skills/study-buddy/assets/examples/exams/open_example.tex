@@ -1,0 +1,128 @@
+% 开卷提纲示例（微观经济学，可带纸质材料）。知识点和数字是示意，出处页码是虚构的
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{10}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{14}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{20}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,longtable,xcolor}
+\usepackage{needspace}
+\usepackage[hidelinks,unicode]{hyperref}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist{nosep,leftmargin=1.4em}
+\ctexset{section={number=\arabic{section},name={,},aftername=\hspace{0.6em},format=\Large\bfseries,beforeskip=14pt,afterskip=6pt},
+         subsection={number=\arabic{section}.\arabic{subsection},name={,},aftername=\hspace{0.5em},format=\large\bfseries,beforeskip=8pt,afterskip=3pt}}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+\newcommand{\src}[1]{{\small\color{gray}[#1]}}
+\newcommand{\idx}[1]{\needspace{8\baselineskip}\section*{#1}\addcontentsline{toc}{section}{#1}}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 微观经济学　开卷提纲}\\[4pt]
+{\small 考试：2027-01-08　范围：第1讲至第3讲　规则：可带纸质材料}
+\end{center}
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+\section{需求与供给}\label{sec:sd}
+\src{Lecture 2 Supply and Demand，p.3--14}　考点权重：高
+
+\textbf{定义}：\kw{需求定律}指其他条件不变时，价格上升，需求量下降；\kw{供给定律}指其他条件不变时，价格上升，供给量上升。
+
+\textbf{均衡}：需求量等于供给量时的价格叫均衡价格（equilibrium price）。
+\[ Q_d(P^*) = Q_s(P^*) \]
+价格高于均衡价格时出现过剩（surplus），低于均衡价格时出现短缺（shortage）。
+
+\textbf{要点}
+\begin{itemize}
+\item 价格变化引起沿着曲线移动（需求量变化）；其他因素（收入、偏好、替代品价格）变化引起曲线整体移动（需求变化）。这两个说法考试里要分清
+\item 需求曲线右移：均衡价格上升，均衡数量上升；供给曲线右移：均衡价格下降，均衡数量上升
+\end{itemize}
+
+\textbf{例题思路}：给出需求和供给方程，令两者相等解出 $P^*$，再代回求 $Q^*$。
+
+\section{价格弹性}\label{sec:pe}
+\src{Lecture 3 Elasticity，p.5--12}　考点权重：高
+
+\textbf{定义}：需求价格弹性（price elasticity of demand）衡量需求量对价格变化的敏感程度。
+\[ E_d = \left| \frac{\Delta Q / Q}{\Delta P / P} \right| \]
+$E_d > 1$ 为富有弹性（elastic），$E_d < 1$ 为缺乏弹性（inelastic），$E_d = 1$ 为单位弹性。
+
+\textbf{总收益}（total revenue）$TR = P \times Q$。涨价时：富有弹性则 $TR$ 下降，缺乏弹性则 $TR$ 上升。
+
+\textbf{影响弹性的因素}：有无替代品、占收入比重、时间长短。时间越长越有弹性。
+
+\textbf{要点}
+\begin{itemize}
+\item 往年题每年一道计算题：先算两个百分比变化，再相除，取绝对值
+\item 判断涨价对总收益的影响，先判断弹性大于还是小于1
+\end{itemize}
+
+\textbf{例题思路}：价格涨20\%，销量降30\%，$E_d = 30\% \div 20\% = 1.5$，富有弹性，涨价后总收益下降。
+
+\section{消费者剩余}\label{sec:cs}
+\src{Lecture 4 Welfare，p.3--9}　考点权重：中
+
+\textbf{定义}：消费者剩余（consumer surplus）是消费者愿意支付的最高价格与实际支付价格之差，在图上是需求曲线以下、价格线以上的面积。
+
+\textbf{公式}（线性需求曲线）
+\[ CS = \frac{1}{2} \times (P_{\max} - P) \times Q \]
+其中 $P_{\max}$ 是需求曲线在纵轴的截距，$P$ 是市场价格，$Q$ 是该价格下的购买量。
+
+\textbf{要点}
+\begin{itemize}
+\item 价格下降，消费者剩余增加；价格上升，消费者剩余减少
+\item 生产者剩余是价格与供给曲线之间的面积，二者之和是总剩余
+\end{itemize}
+
+\textbf{例题思路}：需求 $P = 20 - Q$，均衡价格 8，则 $Q = 12$，$CS = \frac{1}{2} \times (20 - 8) \times 12 = 72$。
+
+\idx{术语速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+术语 & 一句话解释 & 页码 \\
+\midrule
+\endhead
+Equilibrium price（均衡价格） & 需求量等于供给量时的价格 & \pageref{sec:sd} \\
+Surplus / Shortage（过剩/短缺） & 价格高于/低于均衡价格时的状态 & \pageref{sec:sd} \\
+Price elasticity of demand（需求价格弹性） & 需求量变化百分比除以价格变化百分比 & \pageref{sec:pe} \\
+Total revenue（总收益） & 价格乘以销量 & \pageref{sec:pe} \\
+Consumer surplus（消费者剩余） & 愿意支付的最高价与实际价格之差 & \pageref{sec:cs} \\
+\bottomrule
+\end{longtable}
+
+\idx{公式速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+名称 & 公式 & 页码 \\
+\midrule
+\endhead
+均衡条件 & $Q_d(P^*) = Q_s(P^*)$ & \pageref{sec:sd} \\
+需求价格弹性 & $E_d = \left| \frac{\Delta Q / Q}{\Delta P / P} \right|$ & \pageref{sec:pe} \\
+总收益 & $TR = P \times Q$ & \pageref{sec:pe} \\
+消费者剩余（线性） & $CS = \frac{1}{2}(P_{\max} - P)Q$ & \pageref{sec:cs} \\
+\bottomrule
+\end{longtable}
+
+\idx{题型速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+题型（来自往年题） & 解题步骤 & 页码 \\
+\midrule
+求均衡价格和数量 & 令 $Q_d = Q_s$ 解 $P^*$，再代回求 $Q^*$ & \pageref{sec:sd} \\
+计算弹性并判断总收益 & 算两个百分比相除取绝对值，与1比较，再判断涨价对 $TR$ 的影响 & \pageref{sec:pe} \\
+计算消费者剩余 & 画图找截距，用三角形面积公式 & \pageref{sec:cs} \\
+\bottomrule
+\end{longtable}
+
+\end{document}

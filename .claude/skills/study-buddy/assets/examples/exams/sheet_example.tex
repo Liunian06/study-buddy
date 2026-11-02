@@ -1,0 +1,56 @@
+% 小抄示例（微观经济学，只能带一张A4）。编译：python scripts/compile_tex.py sheet_example.tex --max-pages 1
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{9}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{10.8}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{10}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,multicol,booktabs,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 2\p@ \@plus1\p@ \@minus1\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 1\p@ \belowdisplayshortskip 1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\setlength{\columnsep}{5pt}
+\setlength{\columnseprule}{0.2pt}
+\setlength{\multicolsep}{2pt}
+\setlist{nosep,leftmargin=1.1em,label=\textbullet}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+\newcommand{\hd}[1]{\par\vspace{2pt}\textbf{【#1】}}
+
+\begin{document}
+{\bfseries 微观经济学　2027-01-08}\hfill{\color{gray}A4一页}
+\begin{multicols}{3}
+\hd{需求与供给}
+\begin{itemize}
+\item \kw{需求定律}：价格升，需求量降；\kw{供给定律}：价格升，供给量升
+\item 均衡：$Q_d(P^*)=Q_s(P^*)$。价格高于均衡 \kw{过剩}，低于均衡 \kw{短缺}
+\item 价格变 $\to$ 沿曲线移动；收入、偏好、替代品价格变 $\to$ 曲线移动
+\item 需求右移：$P\uparrow$ $Q\uparrow$；供给右移：$P\downarrow$ $Q\uparrow$
+\item 题型：令 $Q_d=Q_s$ 解 $P^*$，代回求 $Q^*$
+\end{itemize}
+
+\hd{价格弹性}
+\begin{itemize}
+\item $E_d=\left|\frac{\Delta Q/Q}{\Delta P/P}\right|$，$>1$ \kw{富有弹性}，$<1$ \kw{缺乏弹性}，$=1$ 单位弹性
+\item $TR=P\times Q$。涨价：富有弹性 $TR\downarrow$，缺乏弹性 $TR\uparrow$
+\item 因素：\kw{替代品}、占收入比重、\kw{时间}（越长越有弹性）
+\item 例：涨价20\%、销量降30\%，$E_d=1.5$，富有弹性，$TR$ 降
+\item 往年题每年一道计算题
+\end{itemize}
+
+\hd{消费者剩余}
+\begin{itemize}
+\item 愿意支付的最高价$-$实际价格；图上是需求曲线以下、价格线以上的面积
+\item 线性需求：$CS=\frac12(P_{\max}-P)Q$
+\item 例：$P=20-Q$，均衡价8，$Q=12$，$CS=\frac12\times12\times12=72$
+\item 价格降，$CS$ 增；总剩余$=CS+PS$
+\end{itemize}
+\end{multicols}
+\end{document}

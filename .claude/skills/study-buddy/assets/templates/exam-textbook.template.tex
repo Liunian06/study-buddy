@@ -1,0 +1,51 @@
+% 教材查阅指南模板（只能带教材）。编译：python scripts/compile_tex.py <文件>.tex
+% 用途：考场上只能翻教材，所以这份指南告诉你每个考点在教材的哪一页、找什么。不抄教材原文。
+% 页码一律用教材上印的页码（书页码），不是PDF页码；没有书页码时写章节号和小节标题，并在说明里提醒用户核对
+% 规则：只改标题信息和正文，导言区（\begin{document}之前）不要动，不要自己加宏包和宏，不引入外部图片
+% 【 】里是要替换的占位内容（替换时连括号一起去掉）。公式外的 % & # _ $ ^ ~ { } \ 要转义，见 references/exam-notes.md
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{10}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{14}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{18}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,longtable,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist{nosep,leftmargin=1.4em}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 【课程名】　教材查阅指南}\\[4pt]
+{\small 教材：【书名，版次】　考试：【YYYY-MM-DD】　规则：只能携带教材}
+\end{center}
+
+页码均为教材上印的页码。【如果是识别不到书页码的情况，写：本表按章节号和小节标题定位，页码需要对照教材核对。】
+
+% ---- 按考点权重从高到低排；同一权重内按教材章节顺序 ----
+\begin{longtable}{@{}p{0.26\linewidth}p{0.2\linewidth}p{0.4\linewidth}c@{}}
+\toprule
+考点 & 教材位置 & 在那里找什么 & 权重 \\
+\midrule
+\endhead
+【考点】 & 【第〇章〇.〇节，p.〇–〇】 & 【公式（〇.〇）；例〇.〇；表〇.〇】 & 【高】 \\
+\bottomrule
+\end{longtable}
+
+\section*{附录里的表（考试可能要查）}
+\begin{itemize}
+\item 【表名】：【p.〇】
+\end{itemize}
+
+\end{document}

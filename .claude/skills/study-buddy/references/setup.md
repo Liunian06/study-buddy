@@ -26,6 +26,19 @@ python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 mark
 
 `python-pptx`不是必需依赖，只在检查pptx内容时用到。
 
+### TeX（只有整理考试提纲才需要）
+
+考试提纲工作流用`compile_tex.py`把tex编译成PDF，需要`xelatex`。默认用MiKTeX，比TeX Live轻很多：
+
+```bash
+winget install MiKTeX.MiKTeX
+```
+
+- 装完重开终端，让PATH生效；之后用`xelatex --version`确认能找到。已经装了TeX Live的也可以直接用
+- MiKTeX首次编译会自动下载缺少的宏包（中文需要ctex等），需要联网，可能慢几分钟；脚本在MiKTeX下会自动打开自动安装开关
+- 没装也不影响其他功能。整理提纲时没装xelatex，tex源文件仍会保存，装好后再编译
+- 中文字体用Windows自带的宋体、黑体、楷体（`fontset=windows`），所以只支持Windows
+
 ## 验证
 
 ```bash
@@ -69,6 +82,7 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 | `scripts/ocr_cli.py` | 把一个或多个文件转成带页码和图片转写的Markdown草稿 | `python scripts/ocr_cli.py <文件...> --course-dir <课程文件夹> --types material` |
 | `scripts/build_pptx.py` | 从pre底稿生成pptx | `python scripts/build_pptx.py <底稿.md>` |
 | `scripts/convert_submission.py` | 把Markdown转成docx或pdf | `python scripts/convert_submission.py <稿.md> --format docx` |
+| `scripts/compile_tex.py` | 把考试提纲的tex编译成PDF | `python scripts/compile_tex.py <文件>.tex` |
 
 ### ocr_cli.py的参数
 
@@ -98,9 +112,23 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 - `build_pptx.py`读取pre底稿里“### 第N页 标题”下的“要点”“图表”“讲稿”“备注”；讲稿和备注写进备注栏；用默认主题，不套模板；输出已存在时另存为`-2`
 - `convert_submission.py`保留标题层级、粗斜体、列表、表格、代码块、引用块和图片；公式（`$$...$$`）按文本原样保留；不添加封面、页眉页脚、目录。pdf先生成docx，再由Word导出
 
+### compile_tex.py的参数
+
+| 参数 | 含义 |
+|---|---|
+| `tex` | tex源文件，UTF-8编码 |
+| `-o`、`--output` | 输出PDF路径，默认与tex同名；`--fill`时文件名加“_填空版”。同名PDF会被覆盖 |
+| `--fill` | 编译填空版：模板里的`\kw{答案}`变成下划线空白；不加时是加粗 |
+| `--max-pages` | 页数上限（小抄填1）。超页时依次缩小字号、行距和页边距（9pt到6pt）重新编译，缩到最小仍超则返回`overflow` |
+| `--keep` | 保留临时编译目录，排查用 |
+
+- 退出码：0成功；1编译失败或超页，按输出里`errors`的行号改tex后重新编译；2参数或环境错误（找不到xelatex等）
+- 输出：stdout是JSON，含`status`（ok、error、overflow、no_engine）、`pages`、`pdf`、`scale`（缩放后的字号等）、`last_page_fill`（最后一页内容占页面高度的比例，小抄用来判断还能不能补内容）、`warnings`（缺字、行宽溢出）、`errors`和`hints`；stderr是进度日志
+- 脚本在临时的ASCII目录里编译，所以tex路径含中文或空格没有问题；每次最多编译三遍，让目录、页码引用和longtable稳定
+
 ### 版本更新检测
 
-`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`运行结束时，会调用`check_update.py`查询GitHub上最新的Release；有新版本时在stderr提示更新命令`npx skills update study-buddy -g`。请求超时2秒，结果缓存（成功24小时、失败6小时）；断网、被限流等任何查询失败都不提示，不影响脚本结果。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭。
+`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`运行结束时，会调用`check_update.py`查询GitHub上最新的Release；有新版本时在stderr提示更新命令`npx skills update study-buddy -g`。请求超时2秒，结果缓存（成功24小时、失败6小时）；断网、被限流等任何查询失败都不提示，不影响脚本结果。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭。
 
 ## 网络与权限
 

@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.3.0
+version: 3.4.0
 ---
 
 # 学习搭子（study-buddy）
@@ -23,6 +23,7 @@ study-buddy/
 │   ├── design-learning-style.md          # 设计学习风格
 │   ├── study-with-notes.md               # 跟课学习
 │   ├── cram-for-exam.md                  # 期末速通
+│   ├── make-exam-notes.md                # 考试提纲（开卷提纲、小抄、教材查阅指南、闭卷背诵稿）
 │   ├── prepare-presentation.md           # Presentation
 │   ├── write-course-paper.md             # 课程论文
 │   └── complete-assignment.md            # 完成作业
@@ -41,6 +42,7 @@ study-buddy/
 │   │   ├── socratic.md                   # 苏格拉底式
 │   │   └── story.md                      # 故事式
 │   ├── exam-cramming.md                  # 诊断、时间分配、检索/间隔/交错练习、往年题、模拟
+│   ├── exam-notes.md                     # 考试规则对应的产出、各提纲怎么写、tex写法、编译失败怎么改
 │   ├── presentation.md                   # 评分维度、结构、页数与时长、讲稿、Q&A
 │   ├── course-paper.md                   # 论文结构、GB/T 7714、文献检索与核实
 │   ├── assignment.md                     # 作业要求拆解、case study结构、task与习题交付
@@ -53,6 +55,10 @@ study-buddy/
 │   │   ├── index.template.md             # 讲义目录.md
 │   │   ├── chapter.template.md           # 一节讲义（讲解 + 查阅两部分）
 │   │   ├── preference.template.md        # 学习偏好.md
+│   │   ├── exam-open.template.tex        # 开卷提纲（目录、术语/公式/题型速查表）
+│   │   ├── exam-sheet.template.tex       # 小抄（三栏，限页数时自动缩放）
+│   │   ├── exam-textbook.template.tex    # 教材查阅指南（考点对应教材页码）
+│   │   ├── exam-closed.template.tex      # 闭卷背诵稿，同源可编译填空版
 │   │   ├── mistakes.template.md          # 错题本
 │   │   ├── cram-plan.template.md         # 速通计划
 │   │   ├── presentation.template.md      # pre结构、PPT大纲、讲稿、Q&A
@@ -64,6 +70,7 @@ study-buddy/
 │   ├── examples/
 │   │   ├── semester_example.md           # 4门课的学期规划.md示例
 │   │   ├── course-info_example.md        # 一门课的课程信息.md示例
+│   │   ├── exams/                        # 四份考试提纲的tex示例（开卷、小抄、教材查阅指南、闭卷），同一门课
 │   │   └── styles/                       # 三份完整的一节讲义示例，同一知识点（价格弹性），只有“讲解”不同
 │   │       ├── textbook_example.md       # 教科书式
 │   │       ├── socratic_example.md       # 苏格拉底式
@@ -74,7 +81,8 @@ study-buddy/
     ├── ocr_cli.py                        # 转PDF、切分、调用OCR引擎（OXR或Paddle）、组装草稿、下载图片、VLM转写图片、校验
     ├── build_pptx.py                     # 用PowerPoint COM从Markdown生成pptx
     ├── convert_submission.py             # 把Markdown转成提交格式（docx、pdf等）
-    └── check_update.py                   # 版本更新检测（由上面三个脚本在结束时调用）
+    ├── compile_tex.py                    # 编译考试提纲的tex为PDF（xelatex），支持填空版、限页数自动缩放
+    └── check_update.py                   # 版本更新检测（由上面四个脚本在结束时调用）
 ```
 
 用户数据保存在`<工作目录>/study-buddy-data/`，结构如下：
@@ -96,6 +104,7 @@ study-buddy-data/
     ├── 草稿/                              # 中间文件：OCR组装稿和图片转写的合并稿
     ├── 讲义/                              # 讲义，第NN章_<知识点名>.md
     ├── <YYYY-MM-DD>_速通计划.md           # 速通计划
+    ├── 考试提纲/                          # 开卷提纲、小抄、教材查阅指南、闭卷背诵稿：tex源文件和PDF
     ├── 演示文稿/                          # pre底稿、翻译稿、pptx、_图表/
     ├── 论文/                              # 论文底稿、修改稿、翻译稿、提交文件、_图表/
     └── 作业/                              # 作业底稿、翻译稿、提交文件、_图表/
@@ -113,6 +122,7 @@ study-buddy-data/
 | 设计学习风格 | “换个讲法”“我想自己设计学习风格”“这样讲我不喜欢”；资料整理确认完知识结构、还没有`学习偏好.md`时自动进入 | `学习偏好.md`，用户自己设计的`学习风格/<名称>.md`，第一节的样张 | [design-learning-style.md](workflows/design-learning-style.md) |
 | 跟课学习 | “带我学下一节”“讲讲第三节” | 讲解、小测批改、错题本 | [study-with-notes.md](workflows/study-with-notes.md) |
 | 期末速通 | “后天考试”“考前怎么复习” | 速通计划、模拟卷批改、考前速记清单 | [cram-for-exam.md](workflows/cram-for-exam.md) |
+| 考试提纲 | “开卷考试帮我整理提纲”“帮我做小抄”“闭卷怎么背”“整理一份能打印的复习资料” | `考试提纲/`下的tex源文件和PDF：开卷提纲、小抄、教材查阅指南、闭卷背诵稿加填空版 | [make-exam-notes.md](workflows/make-exam-notes.md) |
 | Presentation | “下周要做pre”“小组pre我负责第三部分” | pre底稿和pptx | [prepare-presentation.md](workflows/prepare-presentation.md) |
 | 课程论文 | “要交一篇3000字的论文” | 完整论文和提交文件 | [write-course-paper.md](workflows/write-course-paper.md) |
 | 完成作业 | “这个case study怎么写”“帮我做这个task”“这份个人作业” | 完整作业和提交文件 | [complete-assignment.md](workflows/complete-assignment.md) |
@@ -123,6 +133,7 @@ study-buddy-data/
 - 一门课第一次使用：先进资料整理，带学和速通都要用到它产出的讲义。用户没整理资料就直接问带学、速通或作业时，先提示并跳转到资料整理（作业类可以在没有讲义时先做，但会缺课程理论依据，要告诉用户）
 - 考试只剩3天以内：进期末速通，不再走完整的跟课学习；风格一律直讲
 - 用户嫌讲法不对（“太绕了”“看着没感觉”“换个讲法”）：进设计学习风格；只是某个概念没听懂，不进，按跟课学习里的换讲法处理
+- 要的是可打印的提纲、小抄、背诵稿：进考试提纲；要的是考前的复习计划、做题和模拟：进期末速通。考试规则（能带什么）只听用户说的，全闭卷只做背诵稿
 - 作业是pre走Presentation，是论文走课程论文，其余（case study、task、报告、习题）走完成作业
 - 用户只说“这门课怎么办”“我快挂了”这类笼统的话：进学期规划
 
@@ -172,6 +183,7 @@ study-buddy-data/
 - 计算及格线、判断考核该做到什么程度时，读[pass-strategy.md](references/pass-strategy.md)
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)
-- `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令，需要把提示转告用户，由用户决定是否更新。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭
+- 整理考试提纲时，读[exam-notes.md](references/exam-notes.md)了解规则对应的产出、tex写法和编译失败怎么改；编译用`scripts/compile_tex.py`，需要安装MiKTeX或TeX Live，见[setup.md](references/setup.md)
+- `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令，需要把提示转告用户，由用户决定是否更新。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭
 - 写讲义、带学、设计学习风格时，读[style-guide.md](references/style-guide.md)了解风格的格式和不能改的边界
 - 其余reference、模板、示例由各workflow在对应步骤指定

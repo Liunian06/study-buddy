@@ -1,0 +1,53 @@
+% 教材查阅指南示例（微观经济学，只能带教材）。教材名和页码都是虚构的，只示范格式
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{10}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{14}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{18}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,longtable,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist{nosep,leftmargin=1.4em}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 微观经济学　教材查阅指南}\\[4pt]
+{\small 教材：《微观经济学原理》（示例）　考试：2027-01-08　规则：只能携带教材}
+\end{center}
+
+页码均为教材上印的页码。
+
+\begin{longtable}{@{}p{0.26\linewidth}p{0.2\linewidth}p{0.4\linewidth}c@{}}
+\toprule
+考点 & 教材位置 & 在那里找什么 & 权重 \\
+\midrule
+\endhead
+需求价格弹性的计算 & 第5章5.1节，p.92--98 & 公式（5.1）；例5.1（奶茶涨价）；表5.2 & 高 \\
+弹性与总收益 & 第5章5.3节，p.103--107 & 图5.4（总收益随价格变化）；例5.3 & 高 \\
+影响弹性的因素 & 第5章5.2节，p.99--102 & 三个因素的小标题；汽油短期与长期的例子 & 高 \\
+均衡价格与数量 & 第4章4.3节，p.74--80 & 图4.5；例4.2（联立方程解均衡） & 高 \\
+需求移动与沿曲线移动 & 第4章4.2节，p.66--73 & 图4.3和图4.4；本节末的对比框 & 高 \\
+消费者剩余 & 第7章7.1节，p.130--136 & 图7.1；公式（7.2）；例7.1 & 中 \\
+生产者剩余 & 第7章7.2节，p.137--140 & 图7.3 & 低 \\
+\bottomrule
+\end{longtable}
+
+\section*{附录里的表（考试可能要查）}
+\begin{itemize}
+\item 常用公式汇总：附录A，p.412
+\item 术语中英对照：附录B，p.418
+\end{itemize}
+
+\end{document}

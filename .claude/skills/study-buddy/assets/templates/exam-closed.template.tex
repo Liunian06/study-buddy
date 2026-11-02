@@ -1,0 +1,68 @@
+% 闭卷背诵稿模板。同一份源文件编译两个版本：
+%   python scripts/compile_tex.py <文件>.tex          背诵稿：\kw{} 里的关键词加粗
+%   python scripts/compile_tex.py <文件>.tex --fill   填空版：\kw{} 变成下划线空白，用来自测
+% 规则：只改标题信息和正文，导言区（\begin{document}之前）不要动，不要自己加宏包和宏，不引入外部图片
+% 【 】里是要替换的占位内容（替换时连括号一起去掉）。公式外的 % & # _ $ ^ ~ { } \ 要转义，见 references/exam-notes.md
+% 写法：背诵优先。按考点权重从高到低分块，一块能在十来分钟背完；\kw{} 只包一个短关键词（不超过8个字），
+%       因为填空版的空白不能折行
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{11}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{17}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{22}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\setlist{nosep,leftmargin=1.6em,itemsep=3pt}
+\ctexset{section={number=\arabic{section},name={,},aftername=\hspace{0.6em},format=\Large\bfseries,beforeskip=14pt,afterskip=6pt},
+         subsection={number=\arabic{section}.\arabic{subsection},name={,},aftername=\hspace{0.5em},format=\large\bfseries,beforeskip=8pt,afterskip=3pt}}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 【课程名】　闭卷背诵稿\ifdefined\SBFILL（填空版）\fi}\\[4pt]
+{\small 考试：【YYYY-MM-DD】　范围：【范围】}
+\end{center}
+
+\section{高权重（必背）}
+\subsection{【知识点名】}
+\begin{enumerate}
+\item 【一句话，关键词用 \kw{} 包起来】
+\item 【公式：$f(x)$，其中 \kw{【符号含义】}】
+\end{enumerate}
+
+% 对比类内容用表格，更好背
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+ & 【A】 & 【B】 \\
+\midrule
+【维度】 & 【\kw{内容}】 & 【\kw{内容}】 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{中权重}
+\subsection{【知识点名】}
+\begin{enumerate}
+\item 【\kw{关键词}】
+\end{enumerate}
+
+\section{低权重（时间够再背）}
+\subsection{【知识点名】}
+\begin{enumerate}
+\item 【\kw{关键词}】
+\end{enumerate}
+
+\end{document}

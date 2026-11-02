@@ -1,0 +1,87 @@
+% 开卷提纲模板。编译：python scripts/compile_tex.py <文件>.tex
+% 规则：只改标题信息和正文，导言区（\begin{document}之前）不要动，不要自己加宏包和宏，不引入外部图片
+% 【 】里是要替换的占位内容（替换时连括号一起去掉）。公式外的 % & # _ $ ^ ~ { } \ 要转义，见 references/exam-notes.md
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{10}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{14}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{20}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,booktabs,longtable,xcolor}
+\usepackage{needspace}
+\usepackage[hidelinks,unicode]{hyperref}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 4\p@ \@plus2\p@ \@minus2\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 2\p@ \@plus1\p@
+  \belowdisplayshortskip 2\p@ \@plus1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlist{nosep,leftmargin=1.4em}
+\ctexset{section={number=\arabic{section},name={,},aftername=\hspace{0.6em},format=\Large\bfseries,beforeskip=14pt,afterskip=6pt},
+         subsection={number=\arabic{section}.\arabic{subsection},name={,},aftername=\hspace{0.5em},format=\large\bfseries,beforeskip=8pt,afterskip=3pt}}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+\newcommand{\src}[1]{{\small\color{gray}[#1]}}
+\newcommand{\idx}[1]{\needspace{8\baselineskip}\section*{#1}\addcontentsline{toc}{section}{#1}}
+
+\begin{document}
+\begin{center}
+{\LARGE\bfseries 【课程名】　开卷提纲}\\[4pt]
+{\small 考试：【YYYY-MM-DD】　范围：【范围】　规则：【如：可带纸质材料】}
+\end{center}
+\setcounter{tocdepth}{2}
+\tableofcontents
+
+% ---- 每个知识点一个 \section，按讲义章节顺序；\label 用于后面的速查表跳转页码 ----
+\section{【知识点名】}\label{sec:k1}
+\src{【资料名，p.起–止】}　考点权重：【高/中/低】
+
+\textbf{定义}：【按课程资料原样写，关键词用 \kw{} 加粗】
+
+\textbf{公式}
+\[ f(x) = \cdots \]
+【每个符号的含义】
+
+\textbf{要点}
+\begin{itemize}
+\item 【要点】
+\end{itemize}
+
+\textbf{例题思路}：【一两句话，怎么做】
+
+% ---- 速查表：开卷时先翻这里找页码。每行的 \pageref 指向上面对应知识点的 \label ----
+\idx{术语速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+术语 & 一句话解释 & 页码 \\
+\midrule
+\endhead
+【English term（中文）】 & 【一句话解释】 & \pageref{sec:k1} \\
+\bottomrule
+\end{longtable}
+
+\idx{公式速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+名称 & 公式 & 页码 \\
+\midrule
+\endhead
+【名称】 & $f(x)$ & \pageref{sec:k1} \\
+\bottomrule
+\end{longtable}
+
+\idx{题型速查}
+\begin{longtable}{@{}p{0.3\linewidth}p{0.5\linewidth}r@{}}
+\toprule
+题型（来自往年题） & 解题步骤 & 页码 \\
+\midrule
+\endhead
+【题型】 & 【步骤】 & \pageref{sec:k1} \\
+\bottomrule
+\end{longtable}
+
+\end{document}

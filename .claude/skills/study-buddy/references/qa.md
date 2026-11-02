@@ -21,6 +21,11 @@
 | 课程文件夹编号不对 | `学期规划.md`丢失或学期号错 | 问用户当前学期，按[data-layout.md](data-layout.md)修正，已有文件夹不改名 |
 | 摘要警告“默认引擎是paddle，但key还没填”，处理很慢或OXR频繁报“已有任务在进行” | 没填Paddle key，退用了OXR；免费OXR同一时间只处理一个任务，约5秒一页 | 申请key填进`config.json`的`paddle.api_key`，见[setup.md](setup.md) |
 | 没有Office的电脑上转不了PPT | COM依赖Office | 请用户手动另存为PDF后再交给脚本 |
+| `compile_tex.py`返回`no_engine` | 没装xelatex | 装MiKTeX：`winget install MiKTeX.MiKTeX`，装完重开终端，tex源文件已保存，装好后重新编译，见[setup.md](setup.md) |
+| MiKTeX首次编译很久没结果，或超时 | 在联网下载缺少的宏包 | 确认网络可用，再编译一次；仍超时就用`--keep`看临时目录里的日志 |
+| 提纲PDF里有的字显示成空白 | 字体里没有这个字符，`warnings`里会列出 | 换成常见字符；数学环境里不要放汉字，用`\text{}` |
+| 开卷提纲速查表页码显示“??” | 页码引用需要多编译一遍才稳定 | 再运行一次`compile_tex.py` |
+| tex一直编译不过 | 特殊字符没转义、括号不配对、用了模板外的宏 | 按`errors`的行号改，先只改第一个错误；5轮仍不行，把最后的错误交给用户，见[exam-notes.md](exam-notes.md) |
 | 生成的pptx没有样式 | 脚本不套模板，只用默认主题 | 属预期；用户在PowerPoint里套学校模板 |
 | 转出的docx不符合学校格式 | 脚本不添加封面、页眉页脚、目录 | 属预期；按作业要求由用户在Word里补，或告知具体要求后调整稿件 |
 | 翻译后字数不符 | 中英文计数方式不同 | 按目标语言重新计数，调整后再核对 |

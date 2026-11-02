@@ -1,0 +1,40 @@
+% 小抄模板（只能带一张A4）。编译：python scripts/compile_tex.py <文件>.tex --max-pages 1
+% 超过一页时编译脚本会自动缩小字号、行距和页边距重新编译；缩到最小仍超，就要删掉低权重内容
+% 规则：只改标题信息和正文，导言区（\begin{document}之前）不要动，不要自己加宏包和宏，不引入外部图片
+% 【 】里是要替换的占位内容（替换时连括号一起去掉）。公式外的 % & # _ $ ^ ~ { } \ 要转义，见 references/exam-notes.md
+% 写法：信息密度优先。每个知识点一个 \hd{}，下面几条短要点；公式用行内 $...$，不用 \[ \]
+\documentclass[a4paper,fontset=windows]{ctexart}
+\ifdefined\SBSIZE\else\def\SBSIZE{9}\fi
+\ifdefined\SBLEAD\else\def\SBLEAD{10.8}\fi
+\ifdefined\SBMARGIN\else\def\SBMARGIN{10}\fi
+\usepackage[margin=\SBMARGIN mm]{geometry}
+\usepackage{amsmath,amssymb,enumitem,multicol,booktabs,xcolor}
+\makeatletter
+\renewcommand\normalsize{\@setfontsize\normalsize{\SBSIZE}{\SBLEAD}%
+  \abovedisplayskip 2\p@ \@plus1\p@ \@minus1\p@
+  \belowdisplayskip \abovedisplayskip
+  \abovedisplayshortskip 1\p@ \belowdisplayshortskip 1\p@
+  \let\@listi\@listI}
+\makeatother
+\normalsize
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1pt}
+\setlength{\columnsep}{5pt}
+\setlength{\columnseprule}{0.2pt}
+\setlength{\multicolsep}{2pt}
+\setlist{nosep,leftmargin=1.1em,label=\textbullet}
+\newlength{\sbw}
+\newcommand{\kw}[1]{\ifdefined\SBFILL\settowidth{\sbw}{#1}\underline{\hspace*{\dimexpr\sbw+0.6em\relax}}\else\textbf{#1}\fi}
+\newcommand{\hd}[1]{\par\vspace{2pt}\textbf{【#1】}}
+
+\begin{document}
+{\bfseries 【课程名】　【考试日期】}\hfill{\color{gray}【A4一页】}
+\begin{multicols}{3}
+\hd{【知识点】}
+\begin{itemize}
+\item 【要点，关键词用 \kw{} 加粗】
+\item 【公式：$f(x)$】
+\end{itemize}
+\end{multicols}
+\end{document}

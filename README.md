@@ -80,7 +80,7 @@ npx skills update study-buddy -g
 
 ## 工作流程
 
-skill 包含 9 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SKILL.md)：
+skill 包含 10 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SKILL.md)：
 
 - **首次使用**：检查环境、建数据目录和配置文件、建学期总览和第一门课
 - **资料整理**：课件、教材、往年题转成讲义 `讲义/` 和目录 `讲义目录.md`
@@ -88,6 +88,7 @@ skill 包含 9 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SK
 - **设计学习风格**：用第一个知识点出几种讲法的样张（教科书式、苏格拉底式、故事式），你选一种、混搭或自己设计，讲义和带学都按它来
 - **跟课学习**：按讲义逐节讲解、小测、错题本
 - **期末速通**：速通计划、模拟卷、考前速记清单
+- **考试提纲**：按考试规则整理可打印的提纲。开卷做全、带目录和速查表；只带一张 A4 做小抄；只带教材做教材查阅指南；闭卷做背诵稿和填空版。内容写成 tex 编译成 PDF，公式能正常显示，需要安装 MiKTeX
 - **Presentation**：pre 底稿、讲稿、Q&A 和 pptx
 - **课程论文**：完整论文和提交文件
 - **完成作业**：case study、task、报告、习题的完整作业和提交文件
@@ -104,10 +105,10 @@ skill 包含 9 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/SK
 study-buddy/
 ├── SKILL.md        # skill 定义和工作流路由
 ├── CHANGELOG.md    # 版本记录
-├── workflows/      # 9 个工作流
+├── workflows/      # 10 个工作流
 ├── references/     # 各工作流引用的操作细则
 ├── assets/         # 模板、示例、VLM 转写指令
-└── scripts/        # ocr_cli.py、build_pptx.py、convert_submission.py、check_update.py
+└── scripts/        # ocr_cli.py、build_pptx.py、convert_submission.py、compile_tex.py、check_update.py
 ```
 
 ### 数据目录
@@ -127,6 +128,7 @@ study-buddy-data/
     ├── 讲义目录.md          # 讲义目录、知识结构、考点权重、学习进度
     ├── 错题本.md            # 错题本
     ├── 讲义/                # 按知识点排好的讲义，第NN章_<知识点名>.md
+    ├── 考试提纲/            # 开卷提纲、小抄、教材查阅指南、闭卷背诵稿（tex 和 PDF）
     ├── 演示文稿/            # pre 底稿、pptx
     ├── 论文/                # 论文底稿和提交文件
     └── 作业/                # 作业底稿和提交文件
