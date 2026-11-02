@@ -107,7 +107,7 @@ study-buddy/
 ├── CHANGELOG.md    # 版本记录
 ├── workflows/      # 10 个工作流
 ├── references/     # 各工作流引用的操作细则
-├── assets/         # 模板、示例、VLM 转写指令
+├── assets/         # 模板、示例、VLM 转写指令、赞赏码和反馈群二维码
 └── scripts/        # ocr_cli.py、build_pptx.py、convert_submission.py、compile_tex.py、check_update.py
 ```
 

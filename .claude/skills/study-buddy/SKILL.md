@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.4.0
+version: 3.5.0
 ---
 
 # 学习搭子（study-buddy）
@@ -43,6 +43,7 @@ study-buddy/
 │   │   └── story.md                      # 故事式
 │   ├── exam-cramming.md                  # 诊断、时间分配、检索/间隔/交错练习、往年题、模拟
 │   ├── exam-notes.md                     # 考试规则对应的产出、各提纲怎么写、tex写法、编译失败怎么改
+│   ├── community.md                      # 什么时候给赞赏码和反馈群二维码、怎么给、群二维码的有效期
 │   ├── presentation.md                   # 评分维度、结构、页数与时长、讲稿、Q&A
 │   ├── course-paper.md                   # 论文结构、GB/T 7714、文献检索与核实
 │   ├── assignment.md                     # 作业要求拆解、case study结构、task与习题交付
@@ -75,8 +76,12 @@ study-buddy/
 │   │       ├── textbook_example.md       # 教科书式
 │   │       ├── socratic_example.md       # 苏格拉底式
 │   │       └── story_example.md          # 故事式
-│   └── prompts/
-│       └── vlm-image.md                  # VLM图片转写的固定指令，由ocr_cli.py读取
+│   ├── prompts/
+│   │   └── vlm-image.md                  # VLM图片转写的固定指令，由ocr_cli.py读取
+│   └── qrcode/
+│       ├── buymecoffee.png               # 赞赏码，用户表达满意时展示
+│       ├── group-1102.jpg                # 反馈群二维码，报错解决不了时展示（7天有效期，见community.md）
+│       └── contact.png                   # 作者的微信二维码，群二维码过期后改给这张
 └── scripts/
     ├── ocr_cli.py                        # 转PDF、切分、调用OCR引擎（OXR或Paddle）、组装草稿、下载图片、VLM转写图片、校验
     ├── build_pptx.py                     # 用PowerPoint COM从Markdown生成pptx
@@ -152,6 +157,7 @@ study-buddy-data/
 - 环境：转换PPT和DOC依赖Windows和已安装的Office（COM），环境检查见[setup.md](references/setup.md)
 - 不编造：论文和作业里的文献、数据、案例事实只用真实、核实过的；没核实的明确标出来。【待补充】的内容不当作结论使用
 - 覆盖前确认：已有文件默认不覆盖，新版本另存为`-2`、`-3`；`学期规划.md`、`讲义目录.md`、`错题本.md`做增量更新
+- 赞赏与反馈：用户自己表达了“好用”“谢谢”这类满意时，在回应之后给赞赏码`assets/qrcode/buymecoffee.png`，同一次对话最多一次；脚本报错、自行排查后仍解决不了，或脚本异常退出时，在问题描述之后给反馈群二维码`assets/qrcode/group-1102.jpg`和Issues链接；群二维码过期后改给作者的微信二维码`assets/qrcode/contact.png`。展示条件、方式和群二维码的有效期见[community.md](references/community.md)
 - 修改本skill时升版本号并更新CHANGELOG.md
 
 ## 案例

@@ -103,6 +103,7 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 - 摘要里已完成的资料标“跳过（已完成）”，中断过的标“续跑”，只算没完成的块；ipynb不走OCR，只报单元格数
 
 - 退出码：0全部成功；1部分失败（某块解析失败、图片下载失败或图片转写失败），重新运行只会重试失败的部分；2参数或环境错误
+- 脚本异常退出（出现Python traceback，或退出码不是上面列出的值）不在这些约定内：按[qa.md](qa.md)整理问题描述，并按[community.md](community.md)给出反馈群二维码（过期后是作者的微信二维码）和Issues链接
 - 已完成的资料会自动跳过；配置好VLM后重新运行，只补转写没转写的图
 - 输出：stdout是JSON摘要，每份资料的状态、页数、图片数、已转写和未转写数、草稿路径、失败页码；stderr是进度日志
 - 资料多、耗时长时放到后台运行
