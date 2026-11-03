@@ -424,18 +424,54 @@ def paddle_parse(cfg, pdf_path):
 ENGINES = {"oxr": oxr_parse, "paddle": paddle_parse}
 
 
-def fetch_image(url, dest_base):
-    """下载图片，按真实格式确定扩展名。返回保存的路径"""
+DL_PERMANENT = {401, 403, 404, 410}  # 这几种状态说明链接已失效，重试没有意义，直接补OCR换新链接
+
+
+class ImageFetchError(Exception):
+    """图片下载失败。permanent为真表示链接已失效（403、404等），重试无用"""
+
+    def __init__(self, msg, permanent=False):
+        super().__init__(msg)
+        self.permanent = permanent
+
+
+def _fetch_once(url, dest_base):
     import requests
     from PIL import Image
-    r = requests.get(url, timeout=60)
-    r.raise_for_status()
-    img = Image.open(io.BytesIO(r.content))
-    ext = {"PNG": ".png", "JPEG": ".jpg", "GIF": ".gif", "WEBP": ".webp", "BMP": ".bmp"}.get(img.format, ".png")
+    try:
+        r = requests.get(url, timeout=60)
+    except requests.RequestException as e:
+        raise ImageFetchError(f"网络错误：{type(e).__name__}") from e
+    if r.status_code in DL_PERMANENT:
+        raise ImageFetchError(f"HTTP {r.status_code}（链接已失效）", permanent=True)
+    if r.status_code != 200:
+        raise ImageFetchError(f"HTTP {r.status_code}")
+    try:
+        img = Image.open(io.BytesIO(r.content))
+        img.verify()
+        fmt = img.format
+    except Exception as e:  # noqa: BLE001
+        raise ImageFetchError("下载内容不是有效图片") from e
+    ext = {"PNG": ".png", "JPEG": ".jpg", "GIF": ".gif", "WEBP": ".webp", "BMP": ".bmp"}.get(fmt, ".png")
     dest = dest_base.with_suffix(ext)
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_bytes(r.content)
     return dest
+
+
+def fetch_image(url, dest_base, attempts=3, wait=2):
+    """下载图片，按真实格式确定扩展名。返回(保存的路径, 重试次数)。
+    超时、5xx、连接错误等重试，间隔wait、2*wait秒递增；403、404等链接失效直接抛出，不重试"""
+    last = None
+    for i in range(max(1, attempts)):
+        try:
+            return _fetch_once(url, dest_base), i
+        except ImageFetchError as e:
+            last = e
+            if e.permanent or i + 1 >= attempts:
+                break
+            time.sleep(wait * (i + 1))
+    raise last
 
 
 # ---------------------------------------------------------------- VLM
@@ -577,12 +613,116 @@ def assemble(mat, course_dir, manifest_imgs):
 # ---------------------------------------------------------------- 单份资料
 
 
+def _dl_cfg(cfg):
+    """download配置：重试次数、并发数、连续几页补OCR后仍下载失败就停止补OCR。缺失或写错时用默认值"""
+    d = cfg.get("download") or {}
+
+    def num(k, default):
+        try:
+            return max(1, int(d.get(k, default)))
+        except (TypeError, ValueError):
+            return default
+    return {"max_attempts": num("max_attempts", 3), "max_concurrency": num("max_concurrency", 4),
+            "max_reocr_failures": num("max_reocr_failures", 3)}
+
+
+def _pictures(pg, orig):
+    """一页里的图片：产出(编号, 链接)。编号p<页码>_<序号>；没有链接时链接为空串"""
+    i = 0
+    for b in pg["blocks"]:
+        if (b.get("type") or "").lower() != "picture":
+            continue
+        i += 1
+        url = b.get("img_url") or ""
+        if not url:
+            m = re.search(r"https?://[^\s)\"']+", b.get("content") or "")
+            url = m.group(0) if m else ""
+        yield f"p{orig:03d}_{i:02d}", url
+
+
+def _drain(futures, imgs, media_dir):
+    """等线程池里的下载全部结束，把结果登记进manifest（只在主线程里改）。返回本批重试的次数"""
+    retried = 0
+    for key, fut in list(futures.items()):
+        e = imgs.setdefault(key, {})
+        try:
+            dest, n = fut.result()
+            e["file"], e["error"] = dest.name, None
+            e.pop("dl_failed", None)
+            retried += n
+        except ImageFetchError as ex:
+            e["file"], e["error"], e["dl_failed"] = None, f"下载失败：{str(ex)[:150]}", True
+        except Exception as ex:  # noqa: BLE001
+            e["file"], e["error"], e["dl_failed"] = None, f"下载失败：{str(ex)[:150]}", True
+    futures.clear()
+    return retried
+
+
+def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, stats):
+    """图片下载（含重试）仍失败的页，单页重新请求OCR引擎拿新链接，再下载。
+    每页最多补一次；连续几页补完仍失败，说明多半是网络问题而不是链接过期，停止补OCR以免白白消耗额度。
+    在主线程里串行做：OXR免费接口同一时间只处理一个任务"""
+    imgs = mat.setdefault("images", {})
+    media_dir = course_dir / "媒体" / mat["dirname"]
+    dl = _dl_cfg(cfg)
+    ecfg, parse = cfg[engine], ENGINES[engine]
+    bad_pages = sorted({int(k[1:4]) for k, e in imgs.items() if e.get("dl_failed")})
+    consec = 0
+    for pno in bad_pages:
+        if consec >= dl["max_reocr_failures"]:
+            stats["reocr_stopped"] = True
+            log(f"  连续{consec}页补OCR后图片仍下载失败，疑似网络问题而不是链接过期，停止补OCR")
+            break
+        ch = next((c for c in mat["chunks"] if c["status"] == "ok" and pno in c["pages"]), None)
+        if ch is None:
+            continue
+        idx = ch["pages"].index(pno)
+        log(f"  第{pno}页图片下载失败，单页补OCR换新链接")
+        stats["reocr_pages"].append(pno)
+        try:
+            one = work_dir / f"redo_{pno:04d}.pdf"
+            make_chunk_pdf(fitz, src_pdf, [pno], one)
+            res = parse(ecfg, one)
+            one.unlink(missing_ok=True)
+            if len(res.get("pages", [])) != 1:
+                raise RuntimeError(f"返回{len(res.get('pages', []))}页，应为1页")
+            cache_file = course_dir / ch["cache"]
+            data = json.loads(cache_file.read_text(encoding="utf-8"))
+            res["pages"][0]["page_num"] = idx
+            data["pages"][idx] = res["pages"][0]
+            # 新结果里图片的数量和顺序可能与第一次不同：先清掉这页的旧记录和旧文件，再按新结果登记
+            for k in [k for k in imgs if k.startswith(f"p{pno:03d}_")]:
+                f = imgs.pop(k).get("file")
+                if f:
+                    (media_dir / f).unlink(missing_ok=True)
+            cache_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+            futures = {}
+            with ThreadPoolExecutor(max_workers=dl["max_concurrency"]) as pool:
+                for key, url in _pictures(res["pages"][0], pno):
+                    e = imgs.setdefault(key, {})
+                    if not url:
+                        e["file"], e["error"] = None, "引擎未返回图片链接"
+                        continue
+                    futures[key] = pool.submit(fetch_image, url, media_dir / key, dl["max_attempts"])
+                stats["retried"] += _drain(futures, imgs, media_dir)
+            still = any(e.get("dl_failed") for k, e in imgs.items() if k.startswith(f"p{pno:03d}_"))
+            consec = consec + 1 if still else 0
+        except FatalEngineError as e:
+            log(f"    补OCR失败（额度或鉴权）：{str(e)[:150]}")
+            stats["reocr_stopped"] = True
+            break
+        except Exception as e:  # noqa: BLE001
+            log(f"    补OCR失败：{str(e)[:150]}")
+            consec += 1
+
+
 def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine):
     ecfg = cfg[engine]
     parse = ENGINES[engine]
     media_dir = course_dir / "媒体" / mat["dirname"]
     cache_dir = course_dir / ".缓存" / mat["id"]
     cache_dir.mkdir(parents=True, exist_ok=True)
+    media_dir.mkdir(parents=True, exist_ok=True)
     max_pages = ecfg["max_pages_per_chunk"]
 
     def new_chunk(p):
@@ -600,6 +740,29 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
                 new.append(ch)
         mat["chunks"] = new
     imgs = mat.setdefault("images", {})
+    dl = _dl_cfg(cfg)
+    stats = {"retried": 0, "reocr_pages": [], "reocr_stopped": False}
+    pool = ThreadPoolExecutor(max_workers=dl["max_concurrency"])
+    futures = {}  # key -> Future，key是图片编号，保证同一张图只下载一次
+
+    def queue_downloads(ch):
+        """把一个已解析的块里还没下载的图片交给线程池。线程只下载，不碰manifest"""
+        data = json.loads((course_dir / ch["cache"]).read_text(encoding="utf-8"))
+        for pg in data["pages"]:
+            orig = ch["pages"][pg["page_num"]]
+            for key, url in _pictures(pg, orig):
+                e = imgs.setdefault(key, {})
+                if key in futures or (e.get("file") and (media_dir / e["file"]).exists()):
+                    continue
+                if not url:
+                    e["file"], e["error"] = None, "引擎未返回图片链接"
+                    continue
+                futures[key] = pool.submit(fetch_image, url, media_dir / key, dl["max_attempts"])
+
+    # 上次已解析的块：缓存里的链接最旧，先下载（上次中断留下的缺图也在这里补），再去解析剩下的块
+    for ch in mat["chunks"]:
+        if ch["status"] == "ok" and (course_dir / ch["cache"]).exists():
+            queue_downloads(ch)
 
     stop = False
     for ci, ch in enumerate(mat["chunks"]):
@@ -620,6 +783,7 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
             cache_file.write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
             ch["status"], ch["error"] = "ok", None
             ch["engine"], ch["seconds"] = engine, round(time.time() - t0, 1)
+            queue_downloads(ch)  # 图片链接刚拿到，马上下载，和后面块的OCR同时进行
         except FatalEngineError as e:
             ch["status"], ch["error"] = "failed", str(e)[:300]
             log(f"    失败：{ch['error']}")
@@ -628,35 +792,11 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
             ch["status"], ch["error"] = "failed", str(e)[:300]
             log(f"    失败：{ch['error']}")
 
-    # 图片：下载并登记
-    for ch in mat["chunks"]:
-        if ch["status"] != "ok":
-            continue
-        cache_file = course_dir / ch["cache"]
-        data = json.loads(cache_file.read_text(encoding="utf-8"))
-        for pg in data["pages"]:
-            orig = ch["pages"][pg["page_num"]]
-            i = 0
-            for b in pg["blocks"]:
-                if (b.get("type") or "").lower() != "picture":
-                    continue
-                i += 1
-                key = f"p{orig:03d}_{i:02d}"
-                e = imgs.setdefault(key, {})
-                if e.get("file") and (media_dir / e["file"]).exists():
-                    continue
-                url = b.get("img_url") or ""
-                if not url:
-                    m = re.search(r"https?://[^\s)\"']+", b.get("content") or "")
-                    url = m.group(0) if m else ""
-                if not url:
-                    e["file"], e["error"] = None, "OXR未返回图片链接"
-                    continue
-                try:
-                    dest = fetch_image(url, media_dir / key)
-                    e["file"], e["error"] = dest.name, None
-                except Exception as ex:  # noqa: BLE001
-                    e["file"], e["error"] = None, f"下载失败：{str(ex)[:150]}"
+    # 收尾：等流水线里的下载全部结束，下载（含重试）仍失败的页单页补OCR换新链接
+    stats["retried"] += _drain(futures, imgs, media_dir)
+    pool.shutdown(wait=True)
+    _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, stats)
+    mat["dl_stats"] = stats
     return None
 
 
@@ -779,6 +919,12 @@ def verify_and_summarize(mat, course_dir, expected_pages):
         "id": mat["id"], "name": mat["name"], "type": TYPE_NAMES.get(mat["type"], mat["type"]),
         "status": status, "pages": expected_pages, "failed_pages": ranges(failed_pages),
         "images": len(imgs), "images_broken": broken,
+        "image_download": {
+            "retries": (mat.get("dl_stats") or {}).get("retried", 0),
+            "reocr_pages": ranges((mat.get("dl_stats") or {}).get("reocr_pages", [])),
+            "reocr_stopped": (mat.get("dl_stats") or {}).get("reocr_stopped", False),
+            "failed": sum(1 for e in imgs.values() if e.get("dl_failed")),
+        },
         "transcribed": transcribed, "untranscribed": untranscribed, "vlm_failed": vlm_failed,
         "draft": f"草稿/{mat['dirname']}.md",
         "page_offset": estimate_offset(mat, course_dir),

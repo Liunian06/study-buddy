@@ -69,6 +69,9 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 | `vlm.min_image_pixels` | 图片最短边小于这个值时视为图标，跳过转写，默认64 |
 | `vlm.max_concurrency` | 同时在途的VLM请求数上限，默认10，用线程池实现（不是分批）；服务商限流（HTTP 429）时调小，最小为1 |
 | `vlm.max_attempts` | 单张图片请求失败后的重试上限，按总尝试次数计（含第一次），默认3，最小为1（不重试）；两次尝试之间依次等2秒、4秒 |
+| `download.max_attempts` | OCR引擎返回的图片链接下载失败后的重试上限，按总尝试次数计，默认3；403、404、410等说明链接已失效的状态不重试，直接补OCR |
+| `download.max_concurrency` | 同时下载的图片数，默认4。下载和后面块的OCR同时进行 |
+| `download.max_reocr_failures` | 连续这么多页单页补OCR后图片仍下载失败，就停止补OCR，默认3。这种情况多半是网络问题而不是链接过期，继续补只会白白消耗额度 |
 
 - 图片转写用的固定指令在[vlm-image.md](../assets/prompts/vlm-image.md)，由脚本直接读取；想调整转写风格时改这个文件
 - agent不会询问key，也不读取或复述它（包括`vlm.api_key`和`paddle.api_key`）；脚本的日志和输出里不出现key
@@ -103,6 +106,8 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 - 摘要里已完成的资料标“跳过（已完成）”，中断过的标“续跑”，只算没完成的块；ipynb不走OCR，只报单元格数
 
 - 退出码：0全部成功；1部分失败（某块解析失败、图片下载失败或图片转写失败），重新运行只会重试失败的部分；2参数或环境错误
+- 图片下载：OCR引擎返回的图片是临时链接，会过期。每解析完一块就马上下载该块的图片，和后面块的OCR同时进行，不等整份资料解析完。下载失败先重试（`download.max_attempts`）；仍失败，或链接已失效（403、404等），就对这一页单独再请求一次OCR拿新链接，再下载。补OCR在主流程里串行做，因为免费OXR同一时间只处理一个任务；每页最多补一次。上次中断留下的“已解析但缺图”的块，重新运行时会先下载，不重新OCR
+- 摘要里的`image_download`：`retries`是重试成功的次数，`reocr_pages`是补过OCR的页码，`reocr_stopped`为真表示因连续失败停止了补OCR，`failed`是最终仍没下载下来的图片数。`reocr_stopped`为真或`failed`不为0时，先检查网络、代理和防火墙，再重新运行；补OCR会消耗OCR额度，所以不要反复重跑
 - 脚本异常退出（出现Python traceback，或退出码不是上面列出的值）不在这些约定内：按[qa.md](qa.md)整理问题描述，并按[community.md](community.md)给出反馈群二维码（过期后是作者的微信二维码）和Issues链接
 - 已完成的资料会自动跳过；配置好VLM后重新运行，只补转写没转写的图
 - 输出：stdout是JSON摘要，每份资料的状态、页数、图片数、已转写和未转写数、草稿路径、失败页码；stderr是进度日志

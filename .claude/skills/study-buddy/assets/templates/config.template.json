@@ -27,5 +27,10 @@
     "max_concurrency": 10,
     "max_attempts": 3,
     "timeout_seconds": 120
+  },
+  "download": {
+    "max_attempts": 3,
+    "max_concurrency": 4,
+    "max_reocr_failures": 3
   }
 }
