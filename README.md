@@ -5,9 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-5A4FCF.svg)](https://claude.com/claude-code)
 
-[官网](https://liunian06.github.io/study-buddy/) · [更新日志](.claude/skills/study-buddy/CHANGELOG.md) · [下载](https://github.com/Liunian06/study-buddy/releases/latest)
-
-[联系作者](#联系作者) · [加入社群](#加入社群) · [赞赏支持](#赞赏支持)
+[官网](https://liunian06.github.io/study-buddy/) · [更新日志](.claude/skills/study-buddy/CHANGELOG.md) · [下载](https://github.com/Liunian06/study-buddy/releases/latest) · [联系作者](#联系作者) · [加入社群](#加入社群) · [赞赏支持](#赞赏支持)
 
 </div>
 
