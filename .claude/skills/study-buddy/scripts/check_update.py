@@ -22,7 +22,8 @@ from typing import Optional, Tuple
 
 REPO = "Liunian06/study-buddy"
 LATEST_API = f"https://api.github.com/repos/{REPO}/releases/latest"
-UPDATE_COMMAND = "npx skills update study-buddy -g"
+UPDATE_COMMAND_GLOBAL = "npx skills update study-buddy -g"
+UPDATE_COMMAND_PROJECT = "npx skills update study-buddy"
 
 TIMEOUT_SECONDS = 2
 CACHE_OK_SECONDS = 24 * 3600
@@ -47,6 +48,27 @@ def read_local_version() -> Optional[str]:
     except OSError:
         pass
     return None
+
+
+def install_root() -> Optional[Path]:
+    """skill 装在 <根>/.<agent>/skills/study-buddy/ 下时返回 <根>；目录结构不符返回 None。"""
+    try:
+        skill_dir = Path(__file__).resolve().parent.parent
+        return skill_dir.parent.parent.parent
+    except OSError:
+        return None
+
+
+def update_command() -> Tuple[str, Optional[Path]]:
+    """按安装位置给出更新命令。根目录是用户主目录说明是全局安装（带 -g）；
+    否则是项目内安装，命令要在该项目目录下运行，返回这个目录。"""
+    root = install_root()
+    try:
+        if root is not None and not os.path.samefile(root, Path.home()):
+            return UPDATE_COMMAND_PROJECT, root
+    except OSError:
+        pass
+    return UPDATE_COMMAND_GLOBAL, None
 
 
 def _load_cache() -> dict:
@@ -103,9 +125,11 @@ def check_update(local_version: Optional[str] = None, latest_version: Optional[s
     local_t, latest_t = parse_version(local), parse_version(latest)
     if not local_t or not latest_t or latest_t <= local_t:
         return None
+    command, project_dir = update_command()
+    where = f"（在 {project_dir} 目录下运行，这个 skill 装在项目里）" if project_dir else ""
     return (
         f"[更新提示] study-buddy 有新版本 v{'.'.join(map(str, latest_t))}（当前 v{'.'.join(map(str, local_t))}）。\n"
-        f"更新命令：{UPDATE_COMMAND}\n"
+        f"更新命令：{command}{where}\n"
         f"更新内容：https://github.com/{REPO}/releases/tag/v{'.'.join(map(str, latest_t))}\n"
         f"更新只替换 skill 本身，工作目录里的 study-buddy-data/ 不受影响。请把以上信息告诉用户，由用户决定是否更新。"
     )

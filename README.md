@@ -31,10 +31,14 @@
 ```text
 请帮我安装 study-buddy 这个 skill，仓库地址：https://github.com/Liunian06/study-buddy
 
-1. 检查当前系统是否为 Windows、是否已安装 PowerPoint 和 Word、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
-2. 全局安装：npx skills add Liunian06/study-buddy --skill study-buddy -g。如果命令让我选择 agent，请选择你自己（我当前使用的这个 agent）。
-3. 安装完成后，从命令输出中确认 skill 的实际安装目录，阅读其中的 references/setup.md，按步骤安装 Python 依赖并运行验证命令。安装依赖前先问我要装到哪个 Python 环境。
-4. 全部完成后，告诉我安装结果，然后阅读安装目录下的 references/introduction.md，向我介绍这个 skill 的功能和使用流程，并问我想先做什么。
+1. 先检查当前工作目录是不是空目录（可以忽略 .claude、.agents 这类 AI 助手自己生成的隐藏目录），记下结果，第 3 步用它决定安装位置。
+2. 检查当前系统是否为 Windows、是否已安装 PowerPoint 和 Word、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
+3. 安装 skill：
+   - 空目录：说明我想从零开始，装在这个项目里，命令不带 -g：npx skills add Liunian06/study-buddy --skill study-buddy。skill 和之后生成的 study-buddy-data/ 都在这个目录下，方便统一管理。
+   - 非空目录：说明我已经有自己的文件夹，不要把 skill 文件放进去，全局安装：npx skills add Liunian06/study-buddy --skill study-buddy -g。
+   如果命令让我选择 agent，请选择你自己（我当前使用的这个 agent）。
+4. 安装完成后，从命令输出中确认 skill 的实际安装目录，阅读其中的 references/setup.md，按步骤安装 Python 依赖并运行验证命令。安装依赖前先问我要装到哪个 Python 环境。
+5. 全部完成后，告诉我安装结果（装在项目里还是全局），然后阅读安装目录下的 references/introduction.md，向我介绍这个 skill 的功能和使用流程，并问我想先做什么。
 
 注意：不要修改我的系统执行策略，不要询问、读取或复述任何 API key。
 ```
@@ -46,9 +50,16 @@
 
 需要 Windows 和已安装的 PowerPoint、Word，[Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
 
-1. 全局安装 skill，按提示选择你使用的 AI 编程助手：
+1. 安装 skill，按提示选择你使用的 AI 编程助手。装在哪里看你的情况：
+
+- 在一个空文件夹里从零开始：装在项目里（不带 `-g`），先进入这个文件夹再运行，skill 会放在该文件夹的 `.claude/skills/` 等目录下，之后只在这个文件夹里打开助手使用
+- 已经有课程文件夹，想在里面用：全局安装（带 `-g`），不往你的文件夹里放 skill 文件
 
 ```bash
+# 项目内安装（空文件夹）
+npx skills add Liunian06/study-buddy --skill study-buddy
+
+# 全局安装（已有文件夹）
 npx skills add Liunian06/study-buddy --skill study-buddy -g
 ```
 
@@ -72,11 +83,17 @@ winget install MiKTeX.MiKTeX
 
 ### 更新
 
+按安装位置选命令：
+
 ```bash
+# 全局安装的，在任意目录运行
 npx skills update study-buddy -g
+
+# 项目内安装的，在装了 skill 的那个文件夹里运行
+npx skills update study-buddy
 ```
 
-脚本运行结束时会自动检查是否有新版本，有则提示更新命令。设置环境变量 `STUDY_BUDDY_NO_UPDATE_CHECK=1` 可关闭检查。
+脚本运行结束时会自动检查是否有新版本，有则按你的安装位置提示对应的更新命令。设置环境变量 `STUDY_BUDDY_NO_UPDATE_CHECK=1` 可关闭检查。
 
 ### 开始使用
 
@@ -111,7 +128,7 @@ skill 包含 10 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/S
 
 ### skill 目录
 
-安装后位于 `~/<agent>/skills/study-buddy/`，`<agent>` 取决于你使用的 AI 编程助手（如 Claude Code 是 `~/.claude/skills/`）。
+全局安装后位于 `~/<agent>/skills/study-buddy/`，`<agent>` 取决于你使用的 AI 编程助手（如 Claude Code 是 `~/.claude/skills/`）；项目内安装则位于 `<你的文件夹>/<agent>/skills/study-buddy/`（如 `<你的文件夹>/.claude/skills/study-buddy/`）。
 
 ```
 study-buddy/
