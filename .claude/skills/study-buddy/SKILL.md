@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.6.1
+version: 3.7.0
 ---
 
 # 学习搭子（study-buddy）
@@ -56,6 +56,7 @@ study-buddy/
 │   │   ├── index.template.md             # 讲义目录.md
 │   │   ├── chapter.template.md           # 一节讲义（讲解 + 查阅两部分）
 │   │   ├── preference.template.md        # 学习偏好.md
+│   │   ├── project-rules.template.md     # 空目录初始化时写入 CLAUDE.md 和 AGENTS.md 的项目规则
 │   │   ├── exam-open.template.tex        # 开卷提纲（目录、术语/公式/题型速查表）
 │   │   ├── exam-sheet.template.tex       # 小抄（三栏，限页数时自动缩放）
 │   │   ├── exam-textbook.template.tex    # 教材查阅指南（考点对应教材页码）
@@ -121,7 +122,7 @@ study-buddy-data/
 
 | 工作流 | 触发条件 | 产出 | 文件 |
 |---|---|---|---|
-| 首次使用 | “帮我初始化”“第一次用”“怎么开始”，或工作目录下没有`study-buddy-data/` | 环境检查结果、`config.json`、空的`学期规划.md` | [first-time-setup.md](workflows/first-time-setup.md) |
+| 首次使用 | “帮我初始化”“第一次用”“怎么开始”，或工作目录下没有`study-buddy-data/` | 环境检查结果、`config.json`、空的`学期规划.md`，空目录下还有`CLAUDE.md`和`AGENTS.md` | [first-time-setup.md](workflows/first-time-setup.md) |
 | 资料整理 | 老师发了一堆课件、参考资料、往年题，或直接丢来一本教材，要整理 | 讲义`讲义/`、`讲义目录.md` | [organize-materials.md](workflows/organize-materials.md) |
 | 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格” | 各课`课程信息.md`里的及格路径，`学期规划.md`里的总览和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
 | 设计学习风格 | “换个讲法”“我想自己设计学习风格”“这样讲我不喜欢”；资料整理确认完知识结构、还没有`学习偏好.md`时自动进入 | `学习偏好.md`，用户自己设计的`学习风格/<名称>.md`，第一节的样张 | [design-learning-style.md](workflows/design-learning-style.md) |

@@ -14,21 +14,24 @@
 
 ## 步骤
 
-1. 检查环境：按[setup.md](../references/setup.md)的“验证”一节检查Windows、Office、Python版本和依赖。缺依赖时先问用户要装到哪个Python环境，用户同意后再装，不改系统执行策略。不满足条件的，如实告诉用户哪几步用不了，如没有Office就转不了PPT和DOC
-2. 建数据目录和配置文件：运行`python scripts/ocr_cli.py --init-config`，在当前目录下建好`study-buddy-data/`并从模板生成`config.json`；已经存在的不覆盖。把`config.json`的路径告诉用户，请用户自己填：`paddle.api_key`（OCR引擎，不填会退用较慢的OXR）和`vlm`下的`base_url`、`model`、`api_key`（转写图片，不填则图片标为“未转写”）。模板里的`sk-123`等是示例值，不是真key，见[setup.md](../references/setup.md)。agent不询问、不读取、不复述key
-3. 建学期总览：套用[semester.template.md](../assets/templates/semester.template.md)生成空的`学期规划.md`，填学期名、学期号和今天的日期，其余表格留空；文件已存在则不动
-4. 建第一门课：问用户第一门课的名字，进入[organize-materials.md](organize-materials.md)的第1步建课，之后按那个工作流继续
+1. 记下工作目录是不是空目录（忽略`.claude`、`.agents`这类AI助手自己生成的隐藏目录），第5步用它决定要不要建项目规则文件。要在建`study-buddy-data/`之前看，建完就不空了
+2. 检查环境：按[setup.md](../references/setup.md)的“验证”一节检查Windows、Office、Python版本和依赖。缺依赖时先问用户要装到哪个Python环境，用户同意后再装，不改系统执行策略。不满足条件的，如实告诉用户哪几步用不了，如没有Office就转不了PPT和DOC
+3. 建数据目录和配置文件：运行`python scripts/ocr_cli.py --init-config`，在当前目录下建好`study-buddy-data/`并从模板生成`config.json`；已经存在的不覆盖。把`config.json`的路径告诉用户，请用户自己填：`paddle.api_key`（OCR引擎，不填会退用较慢的OXR）和`vlm`下的`base_url`、`model`、`api_key`（转写图片，不填则图片标为“未转写”）。模板里的`sk-123`等是示例值，不是真key，见[setup.md](../references/setup.md)。agent不询问、不读取、不复述key
+4. 建学期总览：套用[semester.template.md](../assets/templates/semester.template.md)生成空的`学期规划.md`，填学期名、学期号和今天的日期，其余表格留空；文件已存在则不动
+5. 建项目规则文件（只有第1步记下的是空目录才做）：把[project-rules.template.md](../assets/templates/project-rules.template.md)的内容原样写成工作目录下的`CLAUDE.md`和`AGENTS.md`两个文件，让之后每次在这个目录里打开助手都先加载本skill，不会忘记处理规则。已经存在同名文件的不覆盖、不追加，告诉用户可以自己把这段规则加进去；非空目录不建，不往用户已有的文件夹里放文件
+6. 建第一门课：问用户第一门课的名字，进入[organize-materials.md](organize-materials.md)的第1步建课，之后按那个工作流继续
 
 ## 产出
 
 - `study-buddy-data/config.json`（用户自己填key）
 - `study-buddy-data/学期规划.md`（空总览）
+- 空目录下初始化时，工作目录下的`CLAUDE.md`和`AGENTS.md`（项目规则）
 - 第一门课的文件夹，含`原始资料/`、`课程资料/`和空的`课程信息.md`
 
 ## 分支
 
-- 用户只想先装环境、不想马上整理资料：做到第3步，告诉用户资料放在哪个目录、下次直接说“整理这门课的资料”即可
-- 用户还没有课程资料：做到第3步，同上
+- 用户只想先装环境、不想马上整理资料：做到第4步，告诉用户资料放在哪个目录、下次直接说“整理这门课的资料”即可
+- 用户还没有课程资料：做到第4步，同上
 - `config.json`已存在：不动，只提醒用户确认key已填好
 - 用户暂时不想配置VLM：可以继续，告诉用户图片不会被转写，填好后重新运行`ocr_cli.py`即可补转写
 
