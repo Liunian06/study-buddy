@@ -180,7 +180,7 @@ study-buddy-data/
 
 扫码加入微信群“study-buddy前瞻服”，和其他用户交流用法、反馈问题。
 
-<img src=".claude/skills/study-buddy/assets/qrcode/group-1102.jpg" alt="study-buddy 微信群二维码" width="220">
+<img src=".claude/skills/study-buddy/assets/qrcode/group.png" alt="study-buddy 微信群二维码" width="220">
 
 微信群二维码只有 7 天有效期，扫不出来或提示过期时，请扫上面的作者微信，或者到 [Issues](../../issues) 留言。
 

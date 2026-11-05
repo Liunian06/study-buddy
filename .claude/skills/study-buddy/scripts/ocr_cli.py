@@ -15,8 +15,10 @@ import json
 import re
 import shutil
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import wait as futures_wait
 from pathlib import Path
 
 TYPE_NAMES = {"material": "课件/参考资料", "textbook": "教材", "past-exam": "往年题", "assignment": "作业要求"}
@@ -28,6 +30,50 @@ SKIP_MARK = "[跳过："
 
 def log(msg):
     print(msg, file=sys.stderr, flush=True)
+
+
+HEARTBEAT_SECONDS = 60  # 耗时较长的操作期间，每隔这么久打一行“仍在处理”
+
+
+def progress(msg):
+    """进度行统一加[进度]前缀，方便助手只取这几行转告用户"""
+    log(f"[进度] {msg}")
+
+
+def fmt_dur(sec):
+    sec = int(round(sec))
+    if sec < 60:
+        return f"{sec}秒"
+    m, s = divmod(sec, 60)
+    if m < 60:
+        return f"{m}分{s}秒" if s else f"{m}分钟"
+    h, m = divmod(m, 60)
+    return f"{h}小时{m}分"
+
+
+class Heartbeat:
+    """with块里的操作耗时较长（OCR排队、轮询）时，每隔一段时间打一行“仍在处理”，让人看得出没有卡住。
+    用独立线程打印，所以不用改各引擎的函数"""
+
+    def __init__(self, label):
+        self.label = label
+        self._stop = threading.Event()
+        self._t = None
+
+    def __enter__(self):
+        t0, interval = time.time(), HEARTBEAT_SECONDS
+
+        def beat():
+            while not self._stop.wait(interval):
+                progress(f"{self.label}仍在处理，已等待{fmt_dur(time.time() - t0)}")
+        self._t = threading.Thread(target=beat, daemon=True)
+        self._t.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._t.join(timeout=2)
+        return False
 
 
 def fail_env(msg):
@@ -668,7 +714,7 @@ def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, s
     ecfg, parse = cfg[engine], ENGINES[engine]
     bad_pages = sorted({int(k[1:4]) for k, e in imgs.items() if e.get("dl_failed")})
     consec = 0
-    for pno in bad_pages:
+    for n, pno in enumerate(bad_pages, 1):
         if consec >= dl["max_reocr_failures"]:
             stats["reocr_stopped"] = True
             log(f"  连续{consec}页补OCR后图片仍下载失败，疑似网络问题而不是链接过期，停止补OCR")
@@ -677,12 +723,13 @@ def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, s
         if ch is None:
             continue
         idx = ch["pages"].index(pno)
-        log(f"  第{pno}页图片下载失败，单页补OCR换新链接")
+        progress(f"资料{mat['id']} 第{pno}页图片下载失败，单页补OCR换新链接（{n}/{len(bad_pages)}）")
         stats["reocr_pages"].append(pno)
         try:
             one = work_dir / f"redo_{pno:04d}.pdf"
             make_chunk_pdf(fitz, src_pdf, [pno], one)
-            res = parse(ecfg, one)
+            with Heartbeat(f"资料{mat['id']} 第{pno}页补OCR"):
+                res = parse(ecfg, one)
             one.unlink(missing_ok=True)
             if len(res.get("pages", [])) != 1:
                 raise RuntimeError(f"返回{len(res.get('pages', []))}页，应为1页")
@@ -716,7 +763,22 @@ def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, s
             consec += 1
 
 
-def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine):
+def _existing_image(media_dir, key):
+    """磁盘上已有的这张图（上次下载完但没来得及登记进manifest就被中断）。能正常打开才算，被截断的不要"""
+    from PIL import Image
+    for p in sorted(media_dir.glob(f"{key}.*")):
+        try:
+            with Image.open(p) as im:
+                im.verify()
+            return p
+        except Exception:  # noqa: BLE001
+            p.unlink(missing_ok=True)
+    return None
+
+
+def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine, save=None):
+    """save：把manifest写盘的函数。切块计划生成后、每个块处理完（成功或失败）后各调一次，
+    这样进程被强杀时，已经解析完的块下次不用重新OCR，只丢弃正在进行的那一块"""
     ecfg = cfg[engine]
     parse = ENGINES[engine]
     media_dir = course_dir / "媒体" / mat["dirname"]
@@ -739,6 +801,8 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
             else:
                 new.append(ch)
         mat["chunks"] = new
+    if save:
+        save()
     imgs = mat.setdefault("images", {})
     dl = _dl_cfg(cfg)
     stats = {"retried": 0, "reocr_pages": [], "reocr_stopped": False}
@@ -754,6 +818,11 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
                 e = imgs.setdefault(key, {})
                 if key in futures or (e.get("file") and (media_dir / e["file"]).exists()):
                     continue
+                have = _existing_image(media_dir, key)
+                if have:  # 上次下载完了但没登记就被中断：直接认，不用旧链接再下载
+                    e["file"], e["error"] = have.name, None
+                    e.pop("dl_failed", None)
+                    continue
                 if not url:
                     e["file"], e["error"] = None, "引擎未返回图片链接"
                     continue
@@ -764,6 +833,14 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
         if ch["status"] == "ok" and (course_dir / ch["cache"]).exists():
             queue_downloads(ch)
 
+    if futures:
+        progress(f"资料{mat['id']} 上次遗留{len(futures)}张图片待下载，已开始补下载")
+    pending_chunks = [c for c in mat["chunks"] if not (c["status"] == "ok" and (course_dir / c["cache"]).exists())]
+    todo_pages = sum(len(c["pages"]) for c in pending_chunks)
+    done_pages = failed_run = 0
+    t_loop = time.time()
+    if todo_pages:
+        progress(f"资料{mat['id']} 待解析{todo_pages}页，共{len(pending_chunks)}块（{engine}）")
     stop = False
     for ci, ch in enumerate(mat["chunks"]):
         cache_file = course_dir / ch["cache"]
@@ -777,7 +854,8 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
         t0 = time.time()
         try:
             make_chunk_pdf(fitz, src_pdf, ch["pages"], pdf_chunk)
-            res = parse(ecfg, pdf_chunk)
+            with Heartbeat(f"资料{mat['id']} 块{ci + 1}/{len(mat['chunks'])}"):
+                res = parse(ecfg, pdf_chunk)
             if len(res.get("pages", [])) != len(ch["pages"]):
                 raise RuntimeError(f"返回{len(res.get('pages', []))}页，应为{len(ch['pages'])}页")
             cache_file.write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
@@ -791,10 +869,35 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
         except Exception as e:  # noqa: BLE001
             ch["status"], ch["error"] = "failed", str(e)[:300]
             log(f"    失败：{ch['error']}")
+        if save:
+            save()  # 这一块的结果落盘后马上登记，之后被强杀也不用重做
+        done_pages += len(ch["pages"])
+        if ch["status"] != "ok":
+            failed_run += len(ch["pages"])
+        elapsed = time.time() - t_loop
+        line = f"资料{mat['id']} 已处理{done_pages}/{todo_pages}页（{done_pages * 100 // todo_pages}%）"
+        if failed_run:
+            line += f"，其中失败{failed_run}页"
+        line += f"，已用{fmt_dur(elapsed)}"
+        if done_pages < todo_pages:
+            line += f"，预计剩余约{fmt_dur(elapsed / done_pages * (todo_pages - done_pages))}"
+        if futures:
+            line += f"；图片下载{sum(f.done() for f in futures.values())}/{len(futures)}"
+        progress(line)
 
     # 收尾：等流水线里的下载全部结束，下载（含重试）仍失败的页单页补OCR换新链接
+    dl_keys = list(futures)
+    while futures:  # 等下载期间也定时报一次进度
+        _, pending = futures_wait(list(futures.values()), timeout=HEARTBEAT_SECONDS)
+        if not pending:
+            break
+        progress(f"资料{mat['id']} 图片下载{len(dl_keys) - len(pending)}/{len(dl_keys)}")
     stats["retried"] += _drain(futures, imgs, media_dir)
     pool.shutdown(wait=True)
+    if dl_keys:
+        bad = sum(1 for k in dl_keys if imgs.get(k, {}).get("dl_failed"))
+        progress(f"资料{mat['id']} 图片下载结束：{len(dl_keys) - bad}/{len(dl_keys)}张成功"
+                 + (f"，{bad}张失败，将对这些页补OCR" if bad else ""))
     _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, stats)
     mat["dl_stats"] = stats
     return None
@@ -874,8 +977,12 @@ def run_vlm(mat, course_dir, vlm, manifest, cfg):
 
     # 第二步：线程池并发请求，最多max_concurrency个请求同时在途；manifest只在主线程里改
     workers = max(1, min(vlm.max_concurrency, len(todo)))
-    log(f"  VLM转写：{sum(len(v) for v in todo.values())}张图，并发{workers}")
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    n_imgs = sum(len(v) for v in todo.values())
+    progress(f"资料{mat['id']} 图片转写开始：{n_imgs}张"
+             + (f"（相同的合并后{len(todo)}次请求）" if n_imgs != len(todo) else "") + f"，并发{workers}")
+    done = bad = 0
+    step = max(1, len(todo) // 20)  # 最多打20行左右，图片上百张时不刷屏
+    with Heartbeat(f"资料{mat['id']} 图片转写"), ThreadPoolExecutor(max_workers=workers) as pool:
         futures = {pool.submit(work, items[0][2]): (h, items) for h, items in todo.items()}
         for fut in as_completed(futures):
             h, items = futures[fut]
@@ -885,10 +992,13 @@ def run_vlm(mat, course_dir, vlm, manifest, cfg):
                 for _, e, _ in items:
                     e["vlm"], e["text"] = "ok", txt
             except Exception as ex:  # noqa: BLE001
+                bad += 1
                 for _, e, _ in items:
                     e["vlm"] = "failed"
                     e["vlm_error"] = str(ex)[:150]
-            log(f"  VLM转写完成：{items[0][0]}")
+            done += 1
+            if done == len(todo) or done % step == 0:
+                progress(f"资料{mat['id']} 图片转写{done}/{len(todo)}" + (f"，失败{bad}" if bad else ""))
 
 
 def verify_and_summarize(mat, course_dir, expected_pages):
@@ -972,6 +1082,20 @@ def ranges(pages):
 
 # 各引擎每分钟处理页数（下限，上限）。paddle为用户给出的实测速度；oxr约5秒一页，取单一值
 SPEED_PPM = {"paddle": (30, 50), "oxr": (12, 12)}
+
+
+def result_line(info, secs):
+    """一份资料处理结束时的一行结果"""
+    if info.get("error"):
+        return f"资料{info['id']} 失败：{info['error'][:80]}，用时{fmt_dur(secs)}"
+    bits = [f"状态{info['status']}", f"{info['pages']}页"]
+    if info["failed_pages"]:
+        bits.append("失败页" + ",".join(info["failed_pages"]))
+    if info["images"]:
+        bits.append(f"图片{info['images']}张（已转写{info['transcribed']}，未转写{info['untranscribed']}，"
+                    f"下载失败{info['image_download']['failed']}）")
+    bits.append(f"用时{fmt_dur(secs)}")
+    return f"资料{info['id']} 结束：" + "，".join(bits)
 
 
 def is_done(mat, draft_path, vlm):
@@ -1116,8 +1240,15 @@ def main():
     manifest = json.loads(mpath.read_text(encoding="utf-8")) if mpath.exists() else {"version": 1, "materials": []}
     sel = parse_pages(args.pages) if args.pages else None
 
+    def save_manifest():
+        """先写临时文件再替换，进程在写的过程中被杀也不会留下半截的manifest"""
+        tmp = mpath.with_suffix(".json.part")
+        tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+        tmp.replace(mpath)
+
     summary, any_problem = [], False
-    for f, tp in zip(files, types):
+    for idx, (f, tp) in enumerate(zip(files, types), 1):
+        t_mat = time.time()
         mat = next((m for m in manifest["materials"] if m["source"] == str(f)), None)
         if mat is None:
             nid = max([int(m["id"]) for m in manifest["materials"]] + [0]) + 1
@@ -1126,13 +1257,14 @@ def main():
             manifest["materials"].append(mat)
         mat["type"] = tp
         log(f"[{mat['id']}] {f.name}（{TYPE_NAMES[tp]}）")
+        progress(f"第{idx}/{len(files)}份开始：资料{mat['id']} {f.name}")
         draft_path = course_dir / "草稿" / f"{mat['dirname']}.md"
         work_dir = course_dir / ".临时" / mat["id"]
         work_dir.mkdir(parents=True, exist_ok=True)
         office_cache = None
 
         if is_done(mat, draft_path, vlm):
-            log("  已完成，跳过")
+            progress(f"资料{mat['id']} 已完成，跳过")
             summary.append({"id": mat["id"], "name": mat["name"], "status": "skipped（已完成）",
                             "draft": f"草稿/{mat['dirname']}.md"})
             continue
@@ -1159,7 +1291,8 @@ def main():
                 if not pages:
                     raise RuntimeError(f"没有可处理的页（共{total}页）")
                 mat["pages"], mat["selected_pages"] = len(pages), (sel and pages)
-                process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine)
+                process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine,
+                                     save=save_manifest)
                 run_vlm(mat, course_dir, vlm, manifest, cfg)
                 md, n_pages, _ = assemble(mat, course_dir, mat["images"])
                 draft_path.write_text(md, encoding="utf-8")
@@ -1177,13 +1310,16 @@ def main():
                 office_cache.unlink(missing_ok=True)
         if info["status"] != "ok":
             any_problem = True
+        progress(result_line(info, time.time() - t_mat))
         summary.append(info)
-        mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+        save_manifest()
 
-    mpath.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
+    save_manifest()
     work_root = course_dir / ".临时"
     if work_root.exists() and not any(work_root.iterdir()):
         work_root.rmdir()
+    n_bad = sum(1 for m in summary if m.get("status") not in ("ok", "skipped（已完成）"))
+    progress(f"全部{len(files)}份处理结束" + (f"，其中{n_bad}份有问题，见摘要" if n_bad else "，没有问题"))
     out = {"course_dir": str(course_dir), "warnings": warnings, "materials": summary}
     print(json.dumps(out, ensure_ascii=False, indent=2))
     sys.exit(1 if any_problem else 0)

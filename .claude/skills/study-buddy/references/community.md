@@ -7,7 +7,7 @@
 | 文件 | 是什么 | 有效期 |
 |---|---|---|
 | [buymecoffee.png](../assets/qrcode/buymecoffee.png) | 作者的赞赏码 | 长期 |
-| [group-1102.jpg](../assets/qrcode/group-1102.jpg) | 反馈群“study-buddy前瞻服”的微信群二维码 | 至2026-11-09 |
+| [group.png](../assets/qrcode/group.png) | 反馈群“study-buddy前瞻服”的微信群二维码 | 至2026-11-12 |
 | [contact.png](../assets/qrcode/contact.png) | 作者的个人微信（昵称“流年.”）加好友二维码 | 长期 |
 
 反馈渠道的优先级：群二维码在有效期内用群二维码；过期了用作者的微信二维码；Issues链接任何时候都附上。
@@ -42,4 +42,4 @@
 - 微信群二维码只有7天有效期（图上写着），到期日期见上表
 - 展示前先看今天的日期：晚于到期日期，就不展示群二维码，改给作者的微信二维码`contact.png`（扫码加好友）和Issues链接（https://github.com/Liunian06/study-buddy/issues），并告诉用户群二维码已过期，可以加作者微信反馈，也请开发者更新群二维码。取不到日期时先给群二维码，再加一句“如果二维码已过期，扫这张加作者微信，或到Issues反馈”，并附上`contact.png`
 - 作者的微信二维码不设到期日期；加好友时请用户说明来意（study-buddy反馈），问题描述按[qa.md](qa.md)的格式准备好，同样不带key
-- 维护：换群二维码时，替换`assets/qrcode/group-1102.jpg`，同时改上表的到期日期，再发新版本。用户装的是旧版本时拿不到新图，所以微信二维码和Issues链接要一直保留，不能只靠群二维码
+- 维护：换群二维码时，替换`assets/qrcode/group.png`（文件名不带日期，换图时沿用这个名字，格式不同时同步改引用），同时改上表的到期日期，再发新版本。用户装的是旧版本时拿不到新图，所以微信二维码和Issues链接要一直保留，不能只靠群二维码

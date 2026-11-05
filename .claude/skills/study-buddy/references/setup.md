@@ -110,8 +110,15 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 - 摘要里的`image_download`：`retries`是重试成功的次数，`reocr_pages`是补过OCR的页码，`reocr_stopped`为真表示因连续失败停止了补OCR，`failed`是最终仍没下载下来的图片数。`reocr_stopped`为真或`failed`不为0时，先检查网络、代理和防火墙，再重新运行；补OCR会消耗OCR额度，所以不要反复重跑
 - 脚本异常退出（出现Python traceback，或退出码不是上面列出的值）不在这些约定内：按[qa.md](qa.md)整理问题描述，并按[community.md](community.md)给出反馈群二维码（过期后是作者的微信二维码）和Issues链接
 - 已完成的资料会自动跳过；配置好VLM后重新运行，只补转写没转写的图
+- 断点续传：每个块解析完（成功或失败）就保存进度，所以脚本被中断（报错退出，或被强杀、断电、后台任务被取消）后重新运行，已解析完的块不会重新OCR，已下载的图片也不会重新下载，只丢弃中断时正在进行、还没返回结果的那一块。唯一的例外是Paddle已提交但还没出结果的任务：任务编号不保存，重跑会重新提交，这一块的额度会再用一次
 - 输出：stdout是JSON摘要，每份资料的状态、页数、图片数、已转写和未转写数、草稿路径、失败页码；stderr是进度日志
-- 资料多、耗时长时放到后台运行
+- 进度实时输出到stderr，进度行统一带`[进度]`前缀，内容有：
+  - 每份资料开始和结束，结束行含状态、页数、失败页、图片情况和用时
+  - 每个块完成时的累计：已处理页数、百分比、已用时间；第一块完成后还有预计剩余（按已完成的块外推）
+  - OCR等待期间每60秒一行“仍在处理，已等待X”，用来判断没有卡住
+  - 图片下载和图片转写的n/total（转写最多打20行左右，图片多时不刷屏）
+  - 全部结束时一行总结
+- 资料多、耗时长时放到后台运行；助手运行期间读这几行并转告用户，见[organize-materials.md](../workflows/organize-materials.md)的第3步
 
 ### build_pptx.py和convert_submission.py
 
