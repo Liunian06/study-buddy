@@ -14,9 +14,9 @@
 
 ## 步骤
 
-1. 收集与更新：把用户给的信息按[course-info.template.md](../assets/templates/course-info.template.md)写进**对应那门课**的`课程信息.md`（文件不存在就新建），只读写这一门课自己的文件；同一门课以最新一次更新为准。缺评分构成的课列出来问用户，没有评分构成就算不出及格路径
-2. 算及格路径：按[pass-strategy.md](../references/pass-strategy.md)对每门课算还差多少分，选出必须做和可以放弃的考核，标出需要期末单独及格的课，结果写回该课的`课程信息.md`。参照[course-info_example.md](../assets/examples/course-info_example.md)
-3. 排周计划：按[semester-planning.md](../references/semester-planning.md)倒排截止时间，给每项任务分配最低小时数，冲突时按风险排序，汇总每周总小时，某周偏高时把任务往前挪
+1. 收集与更新：把用户给的信息按[course-info.template.md](../assets/templates/course-info.template.md)写进**对应那门课**的`课程信息.md`（文件不存在就新建），只读写这一门课自己的文件；同一门课以最新一次更新为准。评分构成是可选信息：学期末才最终评定，什么时候给都行，用户没给就不问、不催，也不因此停下；用户顺口提到评分、成绩或截止时间，直接记下，不追问
+2. 算及格路径：只对填了评分构成的课，按[pass-strategy.md](../references/pass-strategy.md)算还差多少分，标出需要期末单独及格的课，结果写回该课的`课程信息.md`；没填的课这一步跳过，相关栏写“未填”，不猜比例。每项考核默认都按做满安排，“可以放弃”只在按最低投入也排不下、用户同意时才写。参照[course-info_example.md](../assets/examples/course-info_example.md)
+3. 排周计划：按[semester-planning.md](../references/semester-planning.md)倒排截止时间（没有评分构成的课按截止时间和任务量排，每项照样按做满估小时），给每项任务分配最低小时数，冲突时按风险排序，汇总每周总小时，某周偏高时把任务往前挪
 4. 确认点：展示每门课的及格路径、可放弃的考核，以及每周总小时。如果按最低投入也明显超出可承受范围，如实说明，由用户决定怎么取舍。确认之前不把“放弃某项”写成定论
 5. 写入并展示本周：把确认后的及格路径写进各课的`课程信息.md`；再按[semester.template.md](../assets/templates/semester.template.md)更新`学期规划.md`的总览，规则见[data-layout.md](../references/data-layout.md)的“两处信息的同步”；在对话里展示本周要做的事和每项的小时数。参照[semester_example.md](../assets/examples/semester_example.md)
 
@@ -30,6 +30,7 @@
 
 - 用户问“这周做什么”：只读`学期规划.md`的本周部分，输出，不重算，也不用去读各课的`课程信息.md`
 - 有新成绩或新截止时间：回到第1步做增量更新，只读写受影响那门课的`课程信息.md`，再更新`学期规划.md`里这门课的行，只重算受影响的课和周
+- 课程没有评分构成：不问，不算及格路径，直接按截止时间排每周清单；用户问“这门课怎么才能及格”时，说明没有评分构成算不出离及格差多少、随时补充即可，同时先给出每周清单。用户之后给了，回到第1步增量更新
 - 换学期：先问用户，确认后把`学期规划.md`改写成新学期的内容。旧学期的课程文件夹连同其中的`课程信息.md`原样保留，上学期的评分构成、及格路径和已得成绩因此仍可回看
 
 ## 后续（可选）
