@@ -1,7 +1,7 @@
 ---
 name: study-buddy
-description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.8.0
+description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。用户说“更新study-buddy”时也使用。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
+version: 3.9.0
 ---
 
 # 学习搭子（study-buddy）
@@ -160,6 +160,13 @@ study-buddy-data/
 - 不编造：论文和作业里的文献、数据、案例事实只用真实、核实过的；没核实的明确标出来。【待补充】的内容不当作结论使用
 - 覆盖前确认：已有文件默认不覆盖，新版本另存为`-2`、`-3`；`学期规划.md`、`讲义目录.md`、`错题本.md`做增量更新
 - 赞赏与反馈：用户自己表达了“好用”“谢谢”这类满意时，在回应之后给赞赏码`assets/qrcode/buymecoffee.png`，同一次对话最多一次；脚本报错、自行排查后仍解决不了，或脚本异常退出时，在问题描述之后给反馈群二维码`assets/qrcode/group.png`和Issues链接；群二维码过期后改给作者的微信二维码`assets/qrcode/contact.png`。展示条件、方式和群二维码的有效期见[community.md](references/community.md)
+- 自动更新：本skill自己负责保持最新，不让用户手动更新。
+  - 检查时机：每次对话第一次用到本skill时，先运行一次`python scripts/check_update.py`（结果缓存24小时，查不到就静默，不拖慢）；四个脚本结束时的`[更新提示]`也按同样规则处理
+  - 提示里写“自动更新：是”（同一主版本）：直接运行提示里的更新命令，不用问用户。脚本运行中途或正在写某份交付物时不更新，等这一步完成再更新；更新完重新读一遍本`SKILL.md`再继续，因为路由和规则可能变了
+  - 提示里写“自动更新：否”（主版本升级，可能有不兼容的变更）：不自动更新，把更新内容告诉用户，用户同意后再运行
+  - 用户说“更新study-buddy”时同样处理，不论是否已经有提示；装在哪里、用哪条命令以提示里写的为准，没有提示时看`<工作目录>/.claude/skills/study-buddy/`或`.agents/skills/study-buddy/`存不存在：存在就是项目内，在那个文件夹里运行`npx skills update study-buddy`，否则运行`npx skills update study-buddy -g`
+  - 更新后读新版本`CHANGELOG.md`最前面一段，用几句话告诉用户更新了什么；`study-buddy-data/`不受影响。命令失败时只报错误的关键一行，不重试，不影响当前任务
+  - 设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`会同时关闭检测和自动更新
 - 修改本skill时升版本号并更新CHANGELOG.md
 
 ## 案例
@@ -192,6 +199,6 @@ study-buddy-data/
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)
 - 整理考试提纲时，读[exam-notes.md](references/exam-notes.md)了解规则对应的产出、tex写法和编译失败怎么改；编译用`scripts/compile_tex.py`，需要安装MiKTeX或TeX Live，见[setup.md](references/setup.md)
-- `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令，需要把提示转告用户，由用户决定是否更新。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭
+- `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令和“自动更新：是/否”，处理方式见上面全局规则的“自动更新”。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭检测和自动更新
 - 写讲义、带学、设计学习风格时，读[style-guide.md](references/style-guide.md)了解风格的格式和不能改的边界
 - 其余reference、模板、示例由各workflow在对应步骤指定

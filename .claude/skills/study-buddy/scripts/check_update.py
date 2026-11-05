@@ -127,11 +127,17 @@ def check_update(local_version: Optional[str] = None, latest_version: Optional[s
         return None
     command, project_dir = update_command()
     where = f"（在 {project_dir} 目录下运行，这个 skill 装在项目里）" if project_dir else ""
+    if latest_t[0] == local_t[0]:
+        auto = "自动更新：是。同一主版本，按 SKILL.md 的“自动更新”规则直接运行更新命令，不用问用户。"
+    else:
+        auto = ("自动更新：否。主版本升级，可能有不兼容的变更，不要自动更新：先把更新内容告诉用户，"
+                "用户同意后再运行更新命令。")
     return (
         f"[更新提示] study-buddy 有新版本 v{'.'.join(map(str, latest_t))}（当前 v{'.'.join(map(str, local_t))}）。\n"
         f"更新命令：{command}{where}\n"
         f"更新内容：https://github.com/{REPO}/releases/tag/v{'.'.join(map(str, latest_t))}\n"
-        f"更新只替换 skill 本身，工作目录里的 study-buddy-data/ 不受影响。请把以上信息告诉用户，由用户决定是否更新。"
+        f"{auto}\n"
+        f"更新只替换 skill 本身，工作目录里的 study-buddy-data/ 不受影响。"
     )
 
 
@@ -146,4 +152,8 @@ def notify_if_update() -> None:
 
 
 if __name__ == "__main__":
+    # 助手会直接运行本脚本读它的提示；Windows 下默认按系统代码页输出，中文会乱码
+    for _stream in (sys.stdout, sys.stderr):
+        if hasattr(_stream, "reconfigure"):
+            _stream.reconfigure(encoding="utf-8")
     notify_if_update()
