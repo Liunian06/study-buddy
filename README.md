@@ -166,7 +166,7 @@ study-buddy-data/
 - 目标是及格，不追求高分或学透
 - 考试或限时测验进行中不代答，考前复习和模拟照常帮忙
 - 依赖 Windows 和 Office：转换 PPT 和 DOC、生成 pptx、导出 pdf 都通过 Office 的 COM 接口完成
-- 课件会上传到 OCR 引擎（默认百度 Paddle，需要自己申请免费 key；没有 key 时退用 SoMark 的 OXR），图片会发给你配置的 VLM 服务商
+- 课件会上传到 OCR 引擎（默认百度 Paddle，需要自己申请免费 key；没有时按“Paddle key → SoMark OXR key → MinerU token → OXR 免费接口 → MinerU 免登录轻量接口”的顺序选第一个可用的，某一档失败再依次退到后面的档位，免费档位速度和效果略差），图片会发给你配置的 VLM 服务商
 
 遇到问题请在 [Issues](../../issues) 留言。
 

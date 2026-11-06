@@ -2,7 +2,8 @@
   "engine": "paddle",
   "oxr": {
     "base_url": "https://free-oxr.somark.ai/api/v1",
-    "api_key": "dummy",
+    "api_key": "OXR_API_KEY",
+    "paid_base_url": "https://somark.ai/api/v1",
     "max_pages_per_chunk": 20,
     "max_mb_per_chunk": 10,
     "timeout_seconds": 300,
@@ -17,6 +18,18 @@
     "timeout_seconds": 300,
     "poll_seconds": 5,
     "job_timeout_seconds": 1800,
+    "retry_429_seconds": 30
+  },
+  "mineru": {
+    "base_url": "https://mineru.net",
+    "api_key": "MinerU_API_KEY",
+    "model_version": "vlm",
+    "max_pages_per_chunk": 100,
+    "max_mb_per_chunk": 100,
+    "timeout_seconds": 300,
+    "poll_seconds": 3,
+    "job_timeout_seconds": 1800,
+    "agent_job_timeout_seconds": 120,
     "retry_429_seconds": 30
   },
   "vlm": {

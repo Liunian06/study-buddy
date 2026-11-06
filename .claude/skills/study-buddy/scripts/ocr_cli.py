@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """把课件、参考资料、往年题、作业要求转成带页码和图片转写的Markdown草稿。
 
-流程：Office转PDF、切分、上传OCR引擎（OXR或Paddle）、按页组装、下载图片、VLM转写图片、合并、校验。
-用--engine选择引擎，默认取config.json里的engine，没写则用paddle（PaddleOCR-VL-1.6）；paddle没填key时退用oxr。
+流程：Office转PDF、切分、上传OCR引擎（OXR、Paddle或MinerU）、按页组装、下载图片、VLM转写图片、合并、校验。
+用--engine选择引擎，默认取config.json里的engine，没写则用paddle（PaddleOCR-VL-1.6）。
+优先级：paddle key → oxr key（商业版）→ mineru key（精准解析）→ oxr免费接口 → mineru免登录轻量接口。paddle没填key时自动在后几档里选；mineru失败时退用oxr（有oxr key用商业版）。
 结果以JSON摘要输出到stdout，日志输出到stderr。
 
 退出码：0全部成功，1部分失败，2参数或环境错误。
@@ -104,7 +105,7 @@ def parse_pages(spec):
 
 # ---------------------------------------------------------------- 配置
 
-PLACEHOLDER_KEYS = {"sk-123", "paddle-token-123"}  # config.template.json里的示例key
+PLACEHOLDER_KEYS = {"sk-123", "paddle-token-123", "MinerU_API_KEY", "OXR_API_KEY", "dummy"}  # config.template.json里的示例key；dummy是旧版oxr免费接口的占位值
 
 def load_config(data_dir, create=True):
     """create=False时config.json不存在也不生成文件，直接按模板默认值返回（--dry-run用）"""
@@ -130,7 +131,7 @@ def load_config(data_dir, create=True):
         else:
             cfg.setdefault(k, v)
     # 模板里的示例key（sk-123等）只是格式示范，视为没填，不能触发真实请求或挡住引擎回退
-    for sec in ("paddle", "vlm"):
+    for sec in ("paddle", "oxr", "mineru", "vlm"):
         if cfg[sec].get("api_key") in PLACEHOLDER_KEYS:
             cfg[sec]["api_key"] = ""
     return cfg, created
@@ -236,6 +237,48 @@ def plan_chunks(fitz, src_pdf, pages, max_pages, max_bytes, work_dir):
     return result
 
 
+def build_chain(cfg):
+    """引擎档位，按优先级从高到低：paddle key → oxr key → mineru key → oxr免费接口 → mineru免登录轻量接口。
+    paddle、oxr、mineru是三家不同的供应商，key互不通用；每档由“供应商 + 有没有自己的key”决定。
+    没有key的档位用api_key置空的配置副本，run_engine/oxr_parse看到空key就走免费或免登录的路径。
+    oxr免费接口和mineru轻量接口不需要key，永远可用；paddle没填key则没有这一档"""
+    def blank(sec):
+        return {**cfg[sec], "api_key": ""}
+
+    chain = []
+    if cfg["paddle"].get("api_key"):
+        chain.append({"engine": "paddle", "cfg": cfg["paddle"], "label": "paddle"})
+    if cfg["oxr"].get("api_key"):
+        chain.append({"engine": "oxr", "cfg": cfg["oxr"], "label": "oxr商业版"})
+    if cfg["mineru"].get("api_key"):
+        chain.append({"engine": "mineru", "cfg": cfg["mineru"], "label": "mineru精准解析"})
+    chain.append({"engine": "oxr", "cfg": blank("oxr"), "label": "oxr免费接口"})
+    chain.append({"engine": "mineru", "cfg": blank("mineru"), "label": "mineru轻量接口"})
+    return chain
+
+
+def parse_with_tier(fitz, src_pdf, pages, tier, course_dir, mat_id, work_dir, tag):
+    """用指定档位解析一个块。各档的单块上限不同（例如oxr每块只有20页、10MB，比paddle、mineru精准解析的块小），
+    所以按这一档的上限重新拆，各小块的结果按顺序拼回，页号重新编成0..n-1，和原来的块对齐"""
+    max_pages, max_bytes = chunk_limits(tier["engine"], tier["cfg"])
+    subs = plan_chunks(fitz, src_pdf, pages, max_pages, max_bytes, work_dir)
+    merged = []
+    for si, sub in enumerate(subs):
+        part = work_dir / f"fallback_{tag}_{si:02d}.pdf"
+        make_chunk_pdf(fitz, src_pdf, sub, part)
+        res = run_engine(tier["engine"], tier["cfg"], part, course_dir, mat_id, f"{tag}f{si}")
+        part.unlink(missing_ok=True)
+        if len(res.get("pages", [])) != len(sub):
+            raise RuntimeError(f"{tier['label']}返回{len(res.get('pages', []))}页，应为{len(sub)}页")
+        for pg in res["pages"]:
+            if pg.get("unpaged"):  # 没有分页信息的输出，合并范围是这个小块而不是整块
+                pg["unpaged_range"] = [sub[0], sub[-1]]
+        merged.extend(res["pages"])
+    for i, pg in enumerate(merged):
+        pg["page_num"] = i
+    return {"pages": merged}
+
+
 # ---------------------------------------------------------------- OXR
 
 
@@ -246,14 +289,16 @@ class FatalEngineError(Exception):
 def oxr_parse(cfg, pdf_path):
     """OXR同步接口。429表示免费接口上已有任务，等久一点再试；网络错误短间隔重试"""
     import requests
-    url = cfg["base_url"].rstrip("/") + "/parse/sync"
+    key = cfg.get("api_key") or ""  # 有key走商业版地址，没有走免费接口（api_key传dummy）
+    base = (cfg.get("paid_base_url") or "https://somark.ai/api/v1") if key else cfg["base_url"]
+    url = base.rstrip("/") + "/parse/sync"
     last = None
     for attempt in range(6):
         try:
             with open(pdf_path, "rb") as fh:
                 r = requests.post(
                     url,
-                    data=[("api_key", cfg.get("api_key", "dummy")), ("output_formats", "json")],
+                    data=[("api_key", key or "dummy"), ("output_formats", "json")],
                     files={"file": (pdf_path.name, fh, "application/pdf")},
                     timeout=cfg.get("timeout_seconds", 300),
                 )
@@ -467,7 +512,333 @@ def paddle_parse(cfg, pdf_path):
     return {"pages": pages}
 
 
-ENGINES = {"oxr": oxr_parse, "paddle": paddle_parse}
+ENGINES = {"oxr": oxr_parse, "paddle": paddle_parse}  # mineru见下，签名不同，由run_engine分发
+
+# ---------------------------------------------------------------- MinerU
+
+_MINERU_FATAL = {"A0202", "A0211", -60018}  # token错误、token过期、每日任务数已达上限：重试没用
+_MINERU_SKIP = {"header", "footer", "page_number", "aside_text"}  # 不进正文；page_number单独存成页码
+_MINERU_PLACEHOLDER = re.compile(r"^<[a-z]+>$")  # 如PPT页脚里的“<number>”占位符，不是正文
+
+
+def _mineru_json(r):
+    """检查一次MinerU响应，返回JSON。鉴权失败、额度用尽抛FatalEngineError，其余错误抛RuntimeError供重试"""
+    if r.status_code in (401, 403):
+        raise FatalEngineError(f"HTTP {r.status_code}（token无效或已过期）：{r.text[:150]}")
+    if r.status_code != 200:
+        raise RuntimeError(f"HTTP {r.status_code}：{r.text[:150]}")
+    body = r.json()
+    code = body.get("code", body.get("msgCode"))
+    if code == 0:
+        return body
+    if code in _MINERU_FATAL:
+        raise FatalEngineError(f"MinerU返回{code}：{body.get('msg')}")
+    raise RuntimeError(f"MinerU返回{code}：{body.get('msg')}")
+
+
+def _mineru_emphasis(text):
+    """MinerU的文本里混用<strong>/<em>标签和**；统一成Markdown"""
+    return (text.replace("<strong>", "**").replace("</strong>", "**")
+            .replace("<em>", "*").replace("</em>", "*"))
+
+
+def mineru_items_to_pages(items, n_pages, img_rel):
+    """content_list.json（按阅读顺序的扁平列表，每项带page_idx，从0起）转成与其他引擎一致的{"pages": [...]}。
+    页数以块PDF的真实页数为准，没有内容的页也返回一个空页，保证和切块的页数一一对应"""
+    pages = [{"page_num": i, "blocks": [], "printed_page": None} for i in range(n_pages)]
+    for it in items:
+        idx = it.get("page_idx")
+        if not isinstance(idx, int) or not 0 <= idx < n_pages:
+            continue
+        pg, blocks, t = pages[idx], pages[idx]["blocks"], it.get("type")
+        text = _mineru_emphasis((it.get("text") or "").strip())
+        if t == "page_number":
+            pg["printed_page"] = pg["printed_page"] or text or None
+        elif t in _MINERU_SKIP:
+            continue
+        elif t == "text" or (t is None and text):
+            if text and it.get("text_level"):
+                blocks.append({"type": "Title", "format": "text", "content": text, "label": "title"})
+            elif text:
+                fmt = "latex" if it.get("text_format") == "latex" else "markdown"
+                blocks.append({"type": "Formula" if fmt == "latex" else "Text", "format": fmt, "content": text})
+        elif t == "equation":
+            if text:
+                blocks.append({"type": "Formula", "format": "latex", "content": text})
+        elif t in ("image", "chart") or (it.get("img_path") and t not in ("table", "list", "code")):
+            # chart（图表，如分布曲线图、柱状图）和image一样当图片；其他带图的未知类型也留着，宁可多不能漏
+            if it.get("img_path"):
+                blocks.append({"type": "Picture", "img_local": f"{img_rel}/{Path(it['img_path']).name}"})
+            caps = (it.get(f"{t}_caption") or []) + (it.get(f"{t}_footnote") or [])
+            if t == "chart" and (it.get("content") or "").strip():
+                caps.append(it["content"].strip())  # 图表识别出的文字（如有）
+            for cap in caps:
+                if cap.strip():
+                    blocks.append({"type": "Text", "format": "markdown", "content": _mineru_emphasis(cap.strip())})
+        elif t == "table":
+            for cap in it.get("table_caption") or []:
+                if cap.strip():
+                    blocks.append({"type": "Text", "format": "markdown", "content": _mineru_emphasis(cap.strip())})
+            if (it.get("table_body") or "").strip():
+                blocks.append({"type": "Text", "format": "markdown", "content": it["table_body"].strip()})
+            elif it.get("img_path"):  # 没有结构化的表格内容，只有表格截图：当图片处理，交给VLM转写
+                blocks.append({"type": "Picture", "img_local": f"{img_rel}/{Path(it['img_path']).name}"})
+            for cap in it.get("table_footnote") or []:
+                if cap.strip():
+                    blocks.append({"type": "Text", "format": "markdown", "content": _mineru_emphasis(cap.strip())})
+        elif t == "list":
+            lines = [_mineru_emphasis(x.strip()) for x in it.get("list_items") or [] if x.strip()]
+            if lines:
+                blocks.append({"type": "Text", "format": "markdown", "content": "\n".join(lines)})
+        elif t == "code":
+            body = (it.get("code_body") or "").rstrip()
+            if body:
+                blocks.append({"type": "Text", "format": "markdown", "content": f"```\n{body}\n```"})
+        elif text and not _MINERU_PLACEHOLDER.match(text):  # 不认识的类型：有文字就留着，宁可多不能漏
+            blocks.append({"type": "Text", "format": "markdown", "content": text})
+    return {"pages": pages}
+
+
+def mineru_parse(cfg, pdf_path, img_dir=None, img_rel=None):
+    """MinerU精准解析（批量上传接口，一次一个文件）：申请上传链接、PUT上传、轮询、下载结果包。
+    结果包里的content_list.json转成与其他引擎一致的{"pages": [...]}，图片解压到img_dir，
+    块里记相对课程文件夹的路径img_rel/<文件名>（缓存里不存绝对路径，课程文件夹搬家后仍可用）"""
+    import requests
+    import zipfile
+    base = cfg["base_url"].rstrip("/")
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {cfg['api_key']}"}
+    img_dir = Path(img_dir) if img_dir else pdf_path.parent / f"{pdf_path.stem}_img"
+    img_rel = img_rel or img_dir.name
+    timeout = cfg.get("timeout_seconds", 300)
+
+    upload_url, batch_id, last = None, None, None
+    for attempt in range(6):  # 申请上传链接：限流等待，网络错误重试
+        try:
+            r = requests.post(f"{base}/api/v4/file-urls/batch", headers=headers, timeout=timeout,
+                              json={"files": [{"name": pdf_path.name, "data_id": pdf_path.stem[:100]}],
+                                    "model_version": cfg.get("model_version", "vlm")})
+            if r.status_code == 429:
+                last = RuntimeError("HTTP 429：请求太频繁")
+                time.sleep(cfg.get("retry_429_seconds", 30))
+                continue
+            data = _mineru_json(r)["data"]
+            upload_url, batch_id = data["file_urls"][0], data["batch_id"]
+            break
+        except FatalEngineError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(3 * (attempt + 1))
+    if not batch_id:
+        raise RuntimeError(f"提交未成功：{last}")
+    for attempt in range(4):  # 上传（PUT，不设Content-Type）
+        try:
+            with open(pdf_path, "rb") as fh:
+                pr = requests.put(upload_url, data=fh, timeout=timeout)
+            if pr.status_code != 200:
+                raise RuntimeError(f"上传失败 HTTP {pr.status_code}")
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if attempt == 3:
+                raise RuntimeError(f"上传未成功：{last}")
+            time.sleep(3 * (attempt + 1))
+
+    deadline = time.time() + cfg.get("job_timeout_seconds", 1800)
+    zip_url, fails = None, 0
+    while time.time() < deadline:  # 轮询：单次查询失败只重试这一次查询
+        time.sleep(cfg.get("poll_seconds", 3))
+        try:
+            rr = requests.get(f"{base}/api/v4/extract-results/batch/{batch_id}", headers=headers, timeout=60)
+            res = (_mineru_json(rr).get("data") or {}).get("extract_result") or []
+            fails = 0
+        except FatalEngineError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            fails += 1
+            if fails >= 10:
+                raise RuntimeError(f"连续查询失败：{e}")
+            continue
+        if not res:
+            continue
+        st = res[0].get("state")
+        if st == "done":
+            zip_url = res[0].get("full_zip_url")
+            break
+        if st == "failed":
+            raise RuntimeError(f"任务失败：{res[0].get('err_msg')}")
+    if not zip_url:
+        raise RuntimeError("任务超时")
+    blob = None
+    for attempt in range(4):
+        try:
+            zr = requests.get(zip_url, timeout=120)
+            zr.raise_for_status()
+            blob = zr.content
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(3 * (attempt + 1))
+    if blob is None:
+        raise RuntimeError(f"下载结果失败：{last}")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(blob))
+    except zipfile.BadZipFile as e:
+        raise RuntimeError("结果包损坏") from e
+    with zf:
+        names = zf.namelist()
+        cl = next((n for n in names if n.endswith("_content_list.json")), None)
+        if cl is None:
+            raise RuntimeError("结果包里没有content_list.json")
+        items = json.loads(zf.read(cl).decode("utf-8"))
+        img_dir.mkdir(parents=True, exist_ok=True)
+        for n in names:
+            if n.startswith("images/") and not n.endswith("/"):
+                (img_dir / Path(n).name).write_bytes(zf.read(n))  # 只取文件名，不信任压缩包里的路径
+        lay = next((n for n in names if n.endswith("layout.json")), None)
+        got = len(json.loads(zf.read(lay).decode("utf-8")).get("pdf_info") or []) if lay else None
+    import pymupdf
+    with pymupdf.open(str(pdf_path)) as doc:
+        n_pages = doc.page_count
+    if got is not None and got != n_pages:
+        raise RuntimeError(f"返回{got}页，应为{n_pages}页")
+    return mineru_items_to_pages(items, n_pages, img_rel)
+
+
+class _NoRetry(RuntimeError):
+    """重试也不会变好的错误（超出大小、页数、文件类型不支持等）"""
+
+
+def _agent_markdown_to_blocks(md):
+    """轻量接口只给一份Markdown：按图片语法拆成文字块和图片块。图片是http链接才能下载，相对路径拿不到图"""
+    blocks, pos = [], 0
+    for m in _IMG_MD.finditer(md):
+        seg = md[pos:m.start()].strip()
+        if seg:
+            blocks.append({"type": "Text", "format": "markdown", "content": _mineru_emphasis(seg)})
+        url = m.group(1)
+        blocks.append({"type": "Picture", "img_url": url if url.startswith("http") else ""})
+        pos = m.end()
+    seg = md[pos:].strip()
+    if seg:
+        blocks.append({"type": "Text", "format": "markdown", "content": _mineru_emphasis(seg)})
+    return blocks
+
+
+def mineru_agent_parse(cfg, pdf_path, img_dir=None, img_rel=None):
+    """MinerU Agent轻量接口：不需要token，按IP限频，固定用pipeline模型。每份最多20页、10MB，一次一个文件，
+    只返回一份Markdown，没有分页信息。所以整块内容放在块的第一页，其余页留空，assemble在那里标注
+    “本块合并输出”，页码只能标到块级。参数img_dir、img_rel与mineru_parse对齐，这里用不上"""
+    import requests
+    base = cfg["base_url"].rstrip("/") + "/api/v1/agent"
+    timeout = cfg.get("timeout_seconds", 300)
+    task_id = upload_url = last = None
+    for attempt in range(6):  # 申请上传链接：限频等待，网络错误重试
+        try:
+            r = requests.post(f"{base}/parse/file", json={"file_name": pdf_path.name, "language": "ch"},
+                              timeout=timeout)
+            if r.status_code == 429:
+                last = RuntimeError("HTTP 429：轻量接口限频")
+                time.sleep(cfg.get("retry_429_seconds", 30))
+                continue
+            if r.status_code != 200:
+                raise RuntimeError(f"HTTP {r.status_code}：{r.text[:150]}")
+            body = r.json()
+            code = body.get("code")
+            if code in (-30001, -30002, -30003, -30004):  # 超10MB、类型不支持、超页数、参数错误
+                raise _NoRetry(f"轻量接口返回{code}：{body.get('msg')}")
+            if code != 0:
+                raise RuntimeError(f"轻量接口返回{code}：{body.get('msg')}")
+            task_id, upload_url = body["data"]["task_id"], body["data"]["file_url"]
+            break
+        except _NoRetry:
+            raise
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(3 * (attempt + 1))
+    if not task_id:
+        raise RuntimeError(f"提交未成功：{last}")
+    for attempt in range(4):  # 上传（PUT）
+        try:
+            with open(pdf_path, "rb") as fh:
+                pr = requests.put(upload_url, data=fh, timeout=timeout)
+            if pr.status_code != 200:
+                raise RuntimeError(f"上传失败 HTTP {pr.status_code}")
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if attempt == 3:
+                raise RuntimeError(f"上传未成功：{last}")
+            time.sleep(3 * (attempt + 1))
+
+    # 轻量接口没有队列优先级，排队时间不可控，等待上限单独设，超过就当作失败，由上层退到下一档（它是链上最后一档，则这一块失败）
+    deadline = time.time() + cfg.get("agent_job_timeout_seconds", 120)
+    md_url, fails = None, 0
+    while time.time() < deadline:
+        time.sleep(cfg.get("poll_seconds", 3))
+        try:
+            g = requests.get(f"{base}/parse/{task_id}", timeout=60)
+            if g.status_code != 200:
+                raise RuntimeError(f"查询 HTTP {g.status_code}")
+            d = g.json().get("data") or {}
+            fails = 0
+        except Exception as e:  # noqa: BLE001
+            fails += 1
+            if fails >= 10:
+                raise RuntimeError(f"连续查询失败：{e}")
+            continue
+        if d.get("state") == "done":
+            md_url = d.get("markdown_url")
+            break
+        if d.get("state") == "failed":
+            raise RuntimeError(f"任务失败：{d.get('err_code')} {d.get('err_msg')}")
+    if not md_url:
+        raise RuntimeError("轻量接口排队或处理超时")
+    md = None
+    for attempt in range(4):
+        try:
+            mr = requests.get(md_url, timeout=120)
+            mr.raise_for_status()
+            md = mr.content.decode("utf-8")
+            break
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(3 * (attempt + 1))
+    if md is None:
+        raise RuntimeError(f"下载结果失败：{last}")
+    import pymupdf
+    with pymupdf.open(str(pdf_path)) as doc:
+        n_pages = doc.page_count
+    pages = [{"page_num": i, "blocks": [], "printed_page": None} for i in range(n_pages)]
+    pages[0]["blocks"] = _agent_markdown_to_blocks(md)
+    if n_pages > 1:
+        pages[0]["unpaged"] = True
+    return {"pages": pages}
+
+
+ENGINES["mineru"] = mineru_parse
+
+
+def run_engine(engine, ecfg, pdf, course_dir, mat_id, tag):
+    """调用引擎解析一个块。mineru的图片随结果包下来，要给它一个存放目录（.缓存/<资料序号>/<tag>_img/）"""
+    if engine == "mineru":
+        rel = f".缓存/{mat_id}/{tag}_img"
+        if ecfg.get("api_key"):  # 有token：精准解析，vlm模型，有分页和图片
+            return mineru_parse(ecfg, pdf, course_dir / rel, rel)
+        return mineru_agent_parse(ecfg, pdf, course_dir / rel, rel)  # 没token：轻量接口，pipeline模型
+    return ENGINES[engine](ecfg, pdf)
+
+
+AGENT_MAX_PAGES, AGENT_MAX_MB = 20, 10  # MinerU轻量接口的单文件上限
+
+
+def chunk_limits(engine, ecfg):
+    """切块上限（页数，字节数）。mineru没填token走轻量接口时，上限收紧到20页、10MB"""
+    pages, mb = ecfg["max_pages_per_chunk"], ecfg["max_mb_per_chunk"]
+    if engine == "mineru" and not ecfg.get("api_key"):
+        pages, mb = min(pages, AGENT_MAX_PAGES), min(mb, AGENT_MAX_MB)
+    return pages, int(mb * 1024 * 1024 * 0.98)
 
 
 DL_PERMANENT = {401, 403, 404, 410}  # 这几种状态说明链接已失效，重试没有意义，直接补OCR换新链接
@@ -481,19 +852,29 @@ class ImageFetchError(Exception):
         self.permanent = permanent
 
 
+LOCAL_PREFIX = "local:"  # MinerU的图片随结果包一起下来，存在课程文件夹的.缓存/里，“下载”就是复制并校验
+
+
 def _fetch_once(url, dest_base):
     import requests
     from PIL import Image
+    if url.startswith(LOCAL_PREFIX):
+        src = Path(url[len(LOCAL_PREFIX):])
+        if not src.exists():  # 缓存里的图被删了：重试没用，走补OCR重新生成
+            raise ImageFetchError(f"本地缓存图片不存在：{src.name}", permanent=True)
+        content = src.read_bytes()
+    else:
+        try:
+            r = requests.get(url, timeout=60)
+        except requests.RequestException as e:
+            raise ImageFetchError(f"网络错误：{type(e).__name__}") from e
+        if r.status_code in DL_PERMANENT:
+            raise ImageFetchError(f"HTTP {r.status_code}（链接已失效）", permanent=True)
+        if r.status_code != 200:
+            raise ImageFetchError(f"HTTP {r.status_code}")
+        content = r.content
     try:
-        r = requests.get(url, timeout=60)
-    except requests.RequestException as e:
-        raise ImageFetchError(f"网络错误：{type(e).__name__}") from e
-    if r.status_code in DL_PERMANENT:
-        raise ImageFetchError(f"HTTP {r.status_code}（链接已失效）", permanent=True)
-    if r.status_code != 200:
-        raise ImageFetchError(f"HTTP {r.status_code}")
-    try:
-        img = Image.open(io.BytesIO(r.content))
+        img = Image.open(io.BytesIO(content))
         img.verify()
         fmt = img.format
     except Exception as e:  # noqa: BLE001
@@ -501,7 +882,7 @@ def _fetch_once(url, dest_base):
     ext = {"PNG": ".png", "JPEG": ".jpg", "GIF": ".gif", "WEBP": ".webp", "BMP": ".bmp"}.get(fmt, ".png")
     dest = dest_base.with_suffix(ext)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    dest.write_bytes(r.content)
+    dest.write_bytes(content)
     return dest
 
 
@@ -634,6 +1015,10 @@ def assemble(mat, course_dir, manifest_imgs):
             n_pages += 1
             pp = pg.get("printed_page")
             parts = [f"<!-- p.{orig:03d}" + (f" | 书p.{pp}" if pp else "") + " -->"]
+            if pg.get("unpaged"):  # 轻量接口没有分页信息：整块内容都在这一页，页码只能标到块级
+                rng = pg.get("unpaged_range") or [ch["pages"][0], ch["pages"][-1]]
+                parts.append(f"<!-- 以下是第{rng[0]}–{rng[1]}页的合并输出，引擎没有给出分页，"
+                             f"出处页码只能标到这个范围 -->")
             pic_i = 0
 
             def picture(b, orig=orig):
@@ -672,14 +1057,17 @@ def _dl_cfg(cfg):
             "max_reocr_failures": num("max_reocr_failures", 3)}
 
 
-def _pictures(pg, orig):
-    """一页里的图片：产出(编号, 链接)。编号p<页码>_<序号>；没有链接时链接为空串"""
+def _pictures(pg, orig, base=None):
+    """一页里的图片：产出(编号, 链接)。编号p<页码>_<序号>；没有链接时链接为空串。
+    base是课程文件夹：块里有img_local（相对它的路径，MinerU的图随结果包存在.缓存/里）时拼成本地链接"""
     i = 0
     for b in pg["blocks"]:
         if (b.get("type") or "").lower() != "picture":
             continue
         i += 1
         url = b.get("img_url") or ""
+        if not url and base is not None and b.get("img_local"):
+            url = LOCAL_PREFIX + str(Path(base) / b["img_local"])
         if not url:
             m = re.search(r"https?://[^\s)\"']+", b.get("content") or "")
             url = m.group(0) if m else ""
@@ -704,14 +1092,13 @@ def _drain(futures, imgs, media_dir):
     return retried
 
 
-def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, stats):
+def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, tier, stats):
     """图片下载（含重试）仍失败的页，单页重新请求OCR引擎拿新链接，再下载。
     每页最多补一次；连续几页补完仍失败，说明多半是网络问题而不是链接过期，停止补OCR以免白白消耗额度。
     在主线程里串行做：OXR免费接口同一时间只处理一个任务"""
     imgs = mat.setdefault("images", {})
     media_dir = course_dir / "媒体" / mat["dirname"]
     dl = _dl_cfg(cfg)
-    ecfg, parse = cfg[engine], ENGINES[engine]
     bad_pages = sorted({int(k[1:4]) for k, e in imgs.items() if e.get("dl_failed")})
     consec = 0
     for n, pno in enumerate(bad_pages, 1):
@@ -729,7 +1116,7 @@ def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, s
             one = work_dir / f"redo_{pno:04d}.pdf"
             make_chunk_pdf(fitz, src_pdf, [pno], one)
             with Heartbeat(f"资料{mat['id']} 第{pno}页补OCR"):
-                res = parse(ecfg, one)
+                res = run_engine(tier["engine"], tier["cfg"], one, course_dir, mat["id"], f"redo{pno:04d}")
             one.unlink(missing_ok=True)
             if len(res.get("pages", [])) != 1:
                 raise RuntimeError(f"返回{len(res.get('pages', []))}页，应为1页")
@@ -745,7 +1132,7 @@ def _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, s
             cache_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
             futures = {}
             with ThreadPoolExecutor(max_workers=dl["max_concurrency"]) as pool:
-                for key, url in _pictures(res["pages"][0], pno):
+                for key, url in _pictures(res["pages"][0], pno, course_dir):
                     e = imgs.setdefault(key, {})
                     if not url:
                         e["file"], e["error"] = None, "引擎未返回图片链接"
@@ -776,22 +1163,22 @@ def _existing_image(media_dir, key):
     return None
 
 
-def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine, save=None):
-    """save：把manifest写盘的函数。切块计划生成后、每个块处理完（成功或失败）后各调一次，
+def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, chain, start, save=None):
+    """chain：build_chain给出的档位列表，start：本次从哪一档开始。某一档失败时依次退到后面的档位。
+    save：把manifest写盘的函数。切块计划生成后、每个块处理完（成功或失败）后各调一次，
     这样进程被强杀时，已经解析完的块下次不用重新OCR，只丢弃正在进行的那一块"""
-    ecfg = cfg[engine]
-    parse = ENGINES[engine]
+    engine, ecfg = chain[start]["engine"], chain[start]["cfg"]
     media_dir = course_dir / "媒体" / mat["dirname"]
     cache_dir = course_dir / ".缓存" / mat["id"]
     cache_dir.mkdir(parents=True, exist_ok=True)
     media_dir.mkdir(parents=True, exist_ok=True)
-    max_pages = ecfg["max_pages_per_chunk"]
+    max_pages, max_bytes = chunk_limits(engine, ecfg)
 
     def new_chunk(p):
         return {"pages": p, "status": "pending", "cache": f".缓存/{mat['id']}/p{p[0]:04d}.json", "error": None}
 
     if not mat.get("chunks"):
-        pl = plan_chunks(fitz, src_pdf, pages, max_pages, int(ecfg["max_mb_per_chunk"] * 1024 * 1024 * 0.98), work_dir)
+        pl = plan_chunks(fitz, src_pdf, pages, max_pages, max_bytes, work_dir)
         mat["chunks"] = [new_chunk(p) for p in pl]
     else:  # 之前用别的引擎切的块，超过当前引擎上限的未完成块要重切
         new = []
@@ -814,7 +1201,7 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
         data = json.loads((course_dir / ch["cache"]).read_text(encoding="utf-8"))
         for pg in data["pages"]:
             orig = ch["pages"][pg["page_num"]]
-            for key, url in _pictures(pg, orig):
+            for key, url in _pictures(pg, orig, course_dir):
                 e = imgs.setdefault(key, {})
                 if key in futures or (e.get("file") and (media_dir / e["file"]).exists()):
                     continue
@@ -840,29 +1227,57 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
     done_pages = failed_run = 0
     t_loop = time.time()
     if todo_pages:
-        progress(f"资料{mat['id']} 待解析{todo_pages}页，共{len(pending_chunks)}块（{engine}）")
+        progress(f"资料{mat['id']} 待解析{todo_pages}页，共{len(pending_chunks)}块（{chain[start]['label']}）")
     stop = False
+    level = start  # 当前档位：某一档出现致命错误或排队超时后，这份资料后面的块都从下一档开始
+    last_tier = chain[start]  # 最后一次成功解析所用的档位，单页补OCR用它
     for ci, ch in enumerate(mat["chunks"]):
         cache_file = course_dir / ch["cache"]
         if ch["status"] == "ok" and cache_file.exists():
             continue
         if stop:
-            ch["status"], ch["error"] = "failed", "已停止：前面的块遇到额度或鉴权错误"
+            ch["status"], ch["error"] = "failed", "已停止：前面的块在所有档位上都遇到额度或鉴权错误"
             continue
-        log(f"  {engine}解析：第{ch['pages'][0]}–{ch['pages'][-1]}页（块{ci + 1}/{len(mat['chunks'])}）")
+        log(f"  {chain[level]['label']}解析：第{ch['pages'][0]}–{ch['pages'][-1]}页（块{ci + 1}/{len(mat['chunks'])}）")
         pdf_chunk = work_dir / f"chunk_{ci:02d}.pdf"
         t0 = time.time()
         try:
             make_chunk_pdf(fitz, src_pdf, ch["pages"], pdf_chunk)
-            with Heartbeat(f"资料{mat['id']} 块{ci + 1}/{len(mat['chunks'])}"):
-                res = parse(ecfg, pdf_chunk)
+            tag = f"p{ch['pages'][0]:04d}"
+            hb = f"资料{mat['id']} 块{ci + 1}/{len(mat['chunks'])}"
+            try_level, res, used = level, None, None
+            while True:
+                tier = chain[try_level]
+                try:
+                    with Heartbeat(hb + ("" if try_level == start else f"（{tier['label']}）")):
+                        if try_level == start:  # 本次的起始档，块已经按它的上限切好
+                            res = run_engine(tier["engine"], tier["cfg"], pdf_chunk, course_dir, mat["id"], tag)
+                        else:  # 退下来的档位，单块上限不同，按它的上限重新拆
+                            res = parse_with_tier(fitz, src_pdf, ch["pages"], tier, course_dir, mat["id"],
+                                                  work_dir, f"{tag}t{try_level}")
+                    used, last_tier = tier["label"], tier
+                    break
+                except Exception as e:  # noqa: BLE001
+                    if try_level + 1 >= len(chain):
+                        raise  # 所有档位都试过了
+                    # 致命错误（key无效、额度用尽）和排队超时说明后面的块多半也一样，整份资料后面都从下一档开始；
+                    # 其他错误只让这一块退到下一档
+                    permanent = isinstance(e, FatalEngineError) or "超时" in str(e)
+                    nxt = chain[try_level + 1]["label"]
+                    note = f"{tier['label']}失败（{str(e)[:100]}），" + \
+                           (f"这份资料后面的块都改用{nxt}" if permanent else f"这一块改用{nxt}")
+                    mat.setdefault("engine_fallback", []).append(note)
+                    progress(f"资料{mat['id']} {note}")
+                    try_level += 1
+                    if permanent:
+                        level = try_level
             if len(res.get("pages", [])) != len(ch["pages"]):
                 raise RuntimeError(f"返回{len(res.get('pages', []))}页，应为{len(ch['pages'])}页")
             cache_file.write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
             ch["status"], ch["error"] = "ok", None
-            ch["engine"], ch["seconds"] = engine, round(time.time() - t0, 1)
+            ch["engine"], ch["seconds"] = used, round(time.time() - t0, 1)
             queue_downloads(ch)  # 图片链接刚拿到，马上下载，和后面块的OCR同时进行
-        except FatalEngineError as e:
+        except FatalEngineError as e:  # 所有档位都试过了，最后一档还是致命错误：后面的块不用再试
             ch["status"], ch["error"] = "failed", str(e)[:300]
             log(f"    失败：{ch['error']}")
             stop = True
@@ -898,7 +1313,7 @@ def process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fi
         bad = sum(1 for k in dl_keys if imgs.get(k, {}).get("dl_failed"))
         progress(f"资料{mat['id']} 图片下载结束：{len(dl_keys) - bad}/{len(dl_keys)}张成功"
                  + (f"，{bad}张失败，将对这些页补OCR" if bad else ""))
-    _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, engine, stats)
+    _reocr_failed_pages(mat, src_pdf, course_dir, work_dir, cfg, fitz, last_tier, stats)
     mat["dl_stats"] = stats
     return None
 
@@ -1081,7 +1496,7 @@ def ranges(pages):
 # ---------------------------------------------------------------- 主流程
 
 # 各引擎每分钟处理页数（下限，上限）。paddle为用户给出的实测速度；oxr约5秒一页，取单一值
-SPEED_PPM = {"paddle": (30, 50), "oxr": (12, 12)}
+SPEED_PPM = {"paddle": (30, 50), "oxr": (12, 12), "mineru": (20, 60)}  # mineru：实测波动大，排队可达数分钟，仅供参考
 
 
 def result_line(info, secs):
@@ -1164,7 +1579,7 @@ def dry_run(files, types, course_dir, engine, vlm, fitz, sel, warnings):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="课件、资料转Markdown草稿（OXR或Paddle，加VLM）")
+    ap = argparse.ArgumentParser(description="课件、资料转Markdown草稿（OXR、Paddle或MinerU，加VLM）")
     ap.add_argument("files", nargs="*", help="一个或多个文件，按传入顺序编号；--init-config时不需要")
     ap.add_argument("--course-dir", help="课程文件夹，如study-buddy-data/0101_微观经济学；--init-config时不需要")
     ap.add_argument("--data-dir", help="数据目录，放config.json；默认为课程文件夹的上一级，--init-config时默认为./study-buddy-data")
@@ -1173,7 +1588,7 @@ def main():
     ap.add_argument("--types", default="material",
                     help="material/textbook/past-exam/assignment，逗号分隔与files一一对应，或只写一个应用到全部")
     ap.add_argument("--pages", help="只处理这些页（1起，如10,17,20-22），用于测试；多份文件时应用到每份")
-    ap.add_argument("--engine", choices=sorted(ENGINES), help="OCR引擎；默认取config.json的engine，没写则用paddle，paddle没填key时退用oxr")
+    ap.add_argument("--engine", choices=sorted(ENGINES), help="OCR起始引擎（paddle/oxr/mineru）；默认取config.json的engine，没写则用paddle。优先级链：paddle key→oxr key→mineru key→oxr免费接口→mineru轻量接口，没key的档位跳过，失败依次退到后面的档位")
     ap.add_argument("--keep-temp", action="store_true", help="保留临时PDF和切块")
     ap.add_argument("--dry-run", action="store_true",
                     help="只预估不处理：输出每份资料的页数、引擎和OCR耗时范围；不联网、不改manifest、不生成config.json")
@@ -1211,16 +1626,29 @@ def main():
 
     cfg, created = load_config(data_dir, create=not args.dry_run)
     engine = args.engine or cfg.get("engine") or "paddle"
-    has_key = bool(cfg["paddle"].get("api_key"))
     warnings = []
-    if engine == "paddle" and not has_key:
+    chain = build_chain(cfg)  # paddle key → oxr key → mineru key → oxr免费接口 → mineru免登录轻量接口
+    if engine == "paddle" and chain[0]["engine"] != "paddle":  # paddle没填key
         if args.engine == "paddle" and args.dry_run:  # 预估照常给，正式运行会报错
             warnings.append("显式指定了paddle但paddle.api_key还没填，正式运行会报错；以下按paddle速度预估")
         elif args.engine == "paddle":  # 用户显式要求paddle但没有key，不悄悄换引擎
             fail_env(f"使用paddle需要key：到 https://aistudio.baidu.com/paddleocr 申请，填进{data_dir / 'config.json'}的paddle.api_key")
-        engine = "oxr"
-        warnings.append("默认引擎是paddle，但paddle.api_key还没填，本次退用oxr（慢、同一时间只处理一个任务）；"
-                        "到 https://aistudio.baidu.com/paddleocr 申请key填进config.json即可")
+        else:
+            warnings.append(f"默认引擎是paddle，但paddle.api_key还没填，本次从“{chain[0]['label']}”开始；"
+                            "到 https://aistudio.baidu.com/paddleocr 申请key填进config.json即可用回paddle")
+        start = 0
+    else:  # 指定的引擎从它在链里最靠前的可用档位开始；失败时依次退到后面的档位
+        start = next(i for i, t in enumerate(chain) if t["engine"] == engine)
+    speed_engine = "paddle" if (args.engine == "paddle" and args.dry_run) else chain[start]["engine"]  # 预估用的引擎
+    if start < len(chain) - 1:
+        warnings.append("本次引擎：" + " → ".join(t["label"] for t in chain[start:]) + "（前一档失败时依次退到后一档）")
+    first = chain[start]
+    if first["label"] == "oxr免费接口":
+        warnings.append("oxr使用免费接口，同一时间只处理一个任务，速度较慢；有商业版key可填进config.json的oxr.api_key")
+    elif first["label"] == "mineru轻量接口":
+        warnings.append("mineru.api_key没填，使用mineru的免登录轻量接口（pipeline模型）：每块最多20页、10MB，"
+                        "只返回一份Markdown，没有分页，页码只能标到块级，也没有表格和公式识别；排队久或失败时退用后面的档位。"
+                        "到MinerU官网的API管理页创建token填进config.json的mineru.api_key，可用vlm模型和精确页码")
     vlm = Vlm(cfg["vlm"])
     if created:
         warnings.append(f"已生成{data_dir / 'config.json'}，请填写vlm的base_url、model、api_key")
@@ -1230,7 +1658,7 @@ def main():
     if args.dry_run:
         if not (data_dir / "config.json").exists():
             warnings.append("数据目录里还没有config.json，按模板默认值预估")
-        dry_run(files, types, course_dir, engine, vlm, fitz, parse_pages(args.pages) if args.pages else None, warnings)
+        dry_run(files, types, course_dir, speed_engine, vlm, fitz, parse_pages(args.pages) if args.pages else None, warnings)
         sys.exit(0)
 
     course_dir.mkdir(parents=True, exist_ok=True)
@@ -1291,7 +1719,7 @@ def main():
                 if not pages:
                     raise RuntimeError(f"没有可处理的页（共{total}页）")
                 mat["pages"], mat["selected_pages"] = len(pages), (sel and pages)
-                process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, engine,
+                process_pdf_material(mat, src_pdf, pages, course_dir, work_dir, cfg, vlm, fitz, chain, start,
                                      save=save_manifest)
                 run_vlm(mat, course_dir, vlm, manifest, cfg)
                 md, n_pages, _ = assemble(mat, course_dir, mat["images"])
@@ -1318,6 +1746,9 @@ def main():
     work_root = course_dir / ".临时"
     if work_root.exists() and not any(work_root.iterdir()):
         work_root.rmdir()
+    for m in manifest["materials"]:  # 本次运行中引擎档位间退用的记录，写进摘要警告
+        for note in m.pop("engine_fallback", None) or []:
+            warnings.append(f"资料{m['id']} {m['name']}：{note}")
     n_bad = sum(1 for m in summary if m.get("status") not in ("ok", "skipped（已完成）"))
     progress(f"全部{len(files)}份处理结束" + (f"，其中{n_bad}份有问题，见摘要" if n_bad else "，没有问题"))
     out = {"course_dir": str(course_dir), "warnings": warnings, "materials": summary}

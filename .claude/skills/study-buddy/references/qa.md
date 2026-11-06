@@ -21,7 +21,8 @@
 | 摘要里`images_broken`或`image_download.failed`不为0，图片没下载下来 | OCR引擎返回的图片链接是临时的，过期了或网络不通 | 脚本已经自动重试并对出问题的页补过OCR；仍失败时检查网络、代理、防火墙，再重新运行。`image_download.reocr_stopped`为真说明连续多页补OCR也没用，多半是网络问题，不要反复重跑，会消耗OCR额度，见[setup.md](setup.md) |
 | 课程信息和总览对不上 | 总览是汇总，单课信息可能后来改过 | 以该课的`课程信息.md`为准，重新生成`学期规划.md`里这门课的行，见[data-layout.md](data-layout.md)的“两处信息的同步” |
 | 课程文件夹编号不对 | `学期规划.md`丢失或学期号错 | 问用户当前学期，按[data-layout.md](data-layout.md)修正，已有文件夹不改名 |
-| 摘要警告“默认引擎是paddle，但key还没填”，处理很慢或OXR频繁报“已有任务在进行” | 没填Paddle key，退用了OXR；免费OXR同一时间只处理一个任务，约5秒一页 | 申请key填进`config.json`的`paddle.api_key`，见[setup.md](setup.md) |
+| 摘要警告“默认引擎是paddle，但key还没填”，处理比较慢，或页码只有范围、没有表格公式 | 没填Paddle key，从优先级链的下一档开始（有oxr key用oxr商业版，再是mineru token，都没有就用OXR免费接口）；免费OXR同一时间只处理一个任务，约5秒一页；最后一档MinerU轻量接口没有分页和表格公式识别 | 申请key填进`config.json`的`paddle.api_key`，或填`oxr.api_key`、`mineru.api_key`，见[setup.md](setup.md) |
+| 摘要警告“xx失败……改用xx”，处理很慢或OXR频繁报“已有任务在进行” | 链上某一档key无效、额度用尽或排队超时，退到了下一档，资料因此上传到了另一家供应商；免费OXR同一时间只处理一个任务，约5秒一页 | 检查摘要里写的那一档的key是否有效，或稍后重跑；也可以填Paddle key，见[setup.md](setup.md) |
 | 没有Office的电脑上转不了PPT | COM依赖Office | 请用户手动另存为PDF后再交给脚本 |
 | `compile_tex.py`返回`no_engine` | 没装xelatex | 装MiKTeX：`winget install MiKTeX.MiKTeX`，装完重开终端，tex源文件已保存，装好后重新编译，见[setup.md](setup.md) |
 | MiKTeX首次编译很久没结果，或超时 | 在联网下载缺少的宏包 | 确认网络可用，再编译一次；仍超时就用`--keep`看临时目录里的日志 |

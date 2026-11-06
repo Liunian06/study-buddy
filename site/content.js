@@ -116,7 +116,7 @@ window.SITE_CONTENT = {
         ["课程论文", "完整论文，引用按 GB/T 7714，转成 docx 或 pdf"],
         ["完成作业", "case study、task、习题，提交语言每次都先问你"],
       ] },
-      { h: "配置 OCR 与 VLM", p: ["初始化时会在 study-buddy-data/ 下生成 config.json。OCR 引擎默认用百度 Paddle，需要自己申请免费 key，不填则退用 SoMark 的 OXR；VLM 用来转写课件里的图片，不填也能用，只是图片不会被转写。", "key 由你自己填写，助手不会询问、读取或复述。"] },
+      { h: "配置 OCR 与 VLM", p: ["初始化时会在 study-buddy-data/ 下生成 config.json。OCR 引擎默认用百度 Paddle，需要自己申请免费 key，不填则按 Paddle key、SoMark OXR key、MinerU token、OXR 免费接口、MinerU 免登录接口的顺序选第一个可用的，某一档失败再依次退到后面；VLM 用来转写课件里的图片，不填也能用，只是图片不会被转写。", "key 由你自己填写，助手不会询问、读取或复述。"] },
       { h: "开始对话", p: ["安装完成后，直接在助手里说需求，例如：", "「老师发了一堆课件，帮我整理一下」", "「后天考微观，还没看过」"] },
       { h: "需要知道的限制", p: ["目标是及格，不追求高分或学透", "考试或限时测验进行中不代答，考前复习和模拟照常帮忙", "依赖 Windows 和 Office，转换 PPT、DOC 和生成 pptx 都要用到"] },
     ],
