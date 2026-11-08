@@ -146,12 +146,12 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 
 ### 版本更新检测
 
-`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`运行结束时，会调用`check_update.py`查询GitHub上最新的Release；有新版本时在stderr提示更新命令，并注明“自动更新：是/否”：同一主版本升级时助手直接运行更新命令，不用问用户；主版本升级（可能有不兼容的变更）时不自动更新，先告诉用户更新内容，用户同意后再更新。每次对话第一次用到本skill时，助手也会先运行一次`python scripts/check_update.py`。脚本按自己所在位置判断安装方式：装在用户主目录下（全局安装）提示`npx skills update study-buddy -g`；装在其他文件夹里（项目内安装）提示不带`-g`的`npx skills update study-buddy`，并写明要在哪个文件夹里运行。请求超时2秒，结果缓存（成功24小时、失败6小时）；断网、被限流等任何查询失败都不提示，不影响脚本结果。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可同时关闭检测和自动更新。
+`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`运行结束时，会调用`check_update.py`查询GitHub上最新的Release；有新版本时在stderr提示更新命令，并注明“自动更新：是/否”，同时附上本地版本之后到最新版本之间所有版本的CHANGELOG段落（按最新版本的tag从GitHub取，新的在前，最多约6000字，超出截断；取不到时只给Release链接）：同一主版本升级时助手直接运行更新命令，不用问用户；主版本升级（可能有不兼容的变更）时不自动更新，先告诉用户更新内容，用户同意后再更新。每次对话第一次用到本skill时，助手也会先运行一次`python scripts/check_update.py`。脚本按自己所在位置判断安装方式：装在用户主目录下（全局安装）提示`npx skills update study-buddy -g`；装在其他文件夹里（项目内安装）提示不带`-g`的`npx skills update study-buddy`，并写明要在哪个文件夹里运行。请求超时2秒，结果缓存（成功24小时、失败6小时）；断网、被限流等任何查询失败都不提示，不影响脚本结果。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可同时关闭检测和自动更新。
 
 ## 网络与权限
 
 - `ocr_cli.py`访问所选的OCR接口和（配置后）VLM服务；引擎返回的图片链接会被下载到本地
-- `check_update.py`访问`api.github.com`查询最新版本，只读，不上传任何数据
+- `check_update.py`访问`api.github.com`查询最新版本；发现有新版本时再访问`raw.githubusercontent.com`取该版本的`CHANGELOG.md`。都是只读，不上传任何数据
 - 转换Office文件时会启动PowerPoint或Word的后台实例，完成后退出；已打开同名文件时可能冲突，先关闭
 - 脚本只写课程文件夹和数据目录，不修改`原始资料/`里的原件；它读取的是`课程资料/`里的副本
 
