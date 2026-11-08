@@ -101,7 +101,7 @@ window.SITE_CONTENT = {
     title: "使用指南",
     intro: "同时修好几门课，只想每门都及格：整理课件、规划每周、带学、速通、做作业。",
     sections: [
-      { h: "适合谁用", p: ["同时修多门晦涩课程、只想用最少时间及格的大学生", "老师发了大量课件，不知道从哪看起", "要做pre、课程论文、case study等作业"] },
+      { h: "适合谁用", p: ["同时修多门晦涩课程、只想用最少时间及格的大学生（个别课想冲高分也可以单独设目标）", "老师发了大量课件，不知道从哪看起", "要做pre、课程论文、case study等作业"] },
       { h: "安装", p: ["需要 Windows 和已安装的 PowerPoint、Word，Node.js 22.20 及以上，Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 Claude Code）。", "推荐直接把仓库 README 里的安装提示词发给你的助手，它会自动安装并检查环境。"], code: "npx skills add Liunian06/study-buddy --skill study-buddy -g" },
       { h: "安装 Python 依赖", p: ["在你的助手确认过的 Python 环境里运行："], code: "python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 markdown-it-py pillow" },
       { h: "使用流程", steps: [
@@ -118,7 +118,7 @@ window.SITE_CONTENT = {
       ] },
       { h: "配置 OCR 与 VLM", p: ["初始化时会在 study-buddy-data/ 下生成 config.json。OCR 引擎默认用百度 Paddle，需要自己申请免费 key，不填则按 Paddle key、SoMark OXR key、MinerU token、OXR 免费接口、MinerU 免登录接口的顺序选第一个可用的，某一档失败再依次退到后面；VLM 用来转写课件里的图片，不填也能用，只是图片不会被转写。", "key 由你自己填写，助手不会询问、读取或复述。"] },
       { h: "开始对话", p: ["安装完成后，直接在助手里说需求，例如：", "「老师发了一堆课件，帮我整理一下」", "「后天考微观，还没看过」"] },
-      { h: "需要知道的限制", p: ["目标是及格，不追求高分或学透", "考试或限时测验进行中不代答，考前复习和模拟照常帮忙", "依赖 Windows 和 Office，转换 PPT、DOC 和生成 pptx 都要用到"] },
+      { h: "需要知道的限制", p: ["默认目标是保过，不追求高分或学透；想冲高分的课可以单独设目标分", "考试或限时测验进行中不代答，考前复习和模拟照常帮忙", "依赖 Windows 和 Office，转换 PPT、DOC 和生成 pptx 都要用到"] },
     ],
     feedback: { text: "遇到问题或想反馈建议，欢迎到 GitHub 留言。", label: "前往 Issues", url: "https://github.com/Liunian06/study-buddy/issues" },
   },

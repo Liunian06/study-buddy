@@ -17,10 +17,10 @@
 
 1. 检查前提：按[exam-cramming.md](../references/exam-cramming.md)检查。课程还没整理资料时，提示先进[organize-materials.md](organize-materials.md)；只剩1天以内时，让资料整理走精简模式
 2. 诊断：每节出1道题，有往年题时优先用，找出不会的点；剩余时间不到1天时跳过诊断
-3. 分配时间：按“考点权重 × 不熟程度”排序，分两轮，最后留限时模拟，套用[cram-plan.template.md](../assets/templates/cram-plan.template.md)写出速通计划
+3. 分配时间：按“考点权重 × 不熟程度”排序，分两轮，最后留限时模拟，套用[cram-plan.template.md](../assets/templates/cram-plan.template.md)写出速通计划。先读该课`课程信息.md`的目标，高分课按[exam-cramming.md](../references/exam-cramming.md)的“高分课的做法”加题型训练和错题复盘
 4. 确认点：把速通计划给用户看，用户确认或调整后才开始执行
 5. 执行：按计划逐块推进，每块用合上书回忆加做题，往年题按题型混着练；批改后把错题写进`错题本.md`
-6. 模拟：按往年题结构出一套限时模拟卷，批改后给出预估分数和离及格还差多少，最后给一页考前速记清单
+6. 模拟：按往年题结构出一套限时模拟卷，批改后给出预估分数和离目标线还差多少，最后给一页考前速记清单
 
 ## 产出
 

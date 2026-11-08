@@ -1,7 +1,7 @@
 ---
 name: study-buddy
-description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。用户说“更新study-buddy”时也使用。不用于追求高分或深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.10.0
+description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线，也可以按课程设目标分冲高分。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“这门课想冲90”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。用户说“更新study-buddy”时也使用。不用于深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
+version: 3.11.0
 ---
 
 # 学习搭子（study-buddy）
@@ -32,7 +32,7 @@ study-buddy/
 │   ├── qa.md                             # 疑难问题处理
 │   ├── setup.md                          # Python依赖、Office COM检查、OCR接口检查、config.json的填写方法、ocr_cli.py的参数与退出码
 │   ├── data-layout.md                    # 数据目录、课程与chapter编号、命名与覆写规则
-│   ├── pass-strategy.md                  # 及格线计算、考核性价比、只做拿分必需的部分
+│   ├── score-strategy.md                 # 目标（保过/高分）、差距计算、考核性价比、保过方案和高分方案
 │   ├── material-processing.md            # 范围确认、草稿与图片转写的读法、知识结构重排、考点信号、讲义写法
 │   ├── semester-planning.md              # 截止时间倒排、风险排序、每周负荷
 │   ├── guided-study.md                   # 讲解深度、看不懂时怎么换讲法、小测题型、错题记录
@@ -102,7 +102,7 @@ study-buddy-data/
 └── 0101_微观经济学/                       # <学期号2位><课程序号2位>_<课程名>
     ├── 原始资料/                          # 用户放入的原件，只读不改
     ├── 课程资料/                          # 整理后的副本（复制并改名），ocr_cli.py读这里
-    ├── 课程信息.md                        # 评分构成、考核表、已得成绩、及格路径
+    ├── 课程信息.md                        # 目标、评分构成、考核表、已得成绩、及格路径
     ├── 讲义目录.md                        # 讲义目录、知识结构、考点权重、学习进度
     ├── 错题本.md                          # 错题本
     ├── manifest.json                     # 中间文件：资料序号、类型、课程资料路径、处理状态
@@ -124,7 +124,7 @@ study-buddy-data/
 |---|---|---|---|
 | 首次使用 | “帮我初始化”“第一次用”“怎么开始”，或工作目录下没有`study-buddy-data/` | 环境检查结果、`config.json`、空的`学期规划.md`，空目录下还有`CLAUDE.md`和`AGENTS.md` | [first-time-setup.md](workflows/first-time-setup.md) |
 | 资料整理 | 老师发了一堆课件、参考资料、往年题，或直接丢来一本教材，要整理 | 讲义`讲义/`、`讲义目录.md` | [organize-materials.md](workflows/organize-materials.md) |
-| 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格” | 各课`课程信息.md`里的及格路径，`学期规划.md`里的总览和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
+| 学期规划 | “这学期怎么安排”“这周要做什么”“这门课怎么才能及格”“这门课想冲90” | 各课`课程信息.md`里的目标和路径，`学期规划.md`里的总览和每周清单 | [plan-semester.md](workflows/plan-semester.md) |
 | 设计学习风格 | “换个讲法”“我想自己设计学习风格”“这样讲我不喜欢”；资料整理确认完知识结构、还没有`学习偏好.md`时自动进入 | `学习偏好.md`，用户自己设计的`学习风格/<名称>.md`，第一节的样张 | [design-learning-style.md](workflows/design-learning-style.md) |
 | 跟课学习 | “带我学下一节”“讲讲第三节” | 讲解、小测批改、错题本 | [study-with-notes.md](workflows/study-with-notes.md) |
 | 期末速通 | “后天考试”“考前怎么复习” | 速通计划、模拟卷批改、考前速记清单 | [cram-for-exam.md](workflows/cram-for-exam.md) |
@@ -148,8 +148,8 @@ study-buddy-data/
 ## 全局规则
 
 - 数据目录：所有产出放进`<工作目录>/study-buddy-data/`，不写到别处。课程文件夹命名、章节编号、覆写规则统一按[data-layout.md](references/data-layout.md)。原件放在课程文件夹的`原始资料/`，只读不改；整理后的副本放`课程资料/`
-- 目标是及格：不追求高分，不追求真正学懂，学习上只做拿分必需的部分；用户交来的作业类任务都做满。依据和算法见[pass-strategy.md](references/pass-strategy.md)
-- 评分构成是可选信息：学期末才最终评定，什么时候给都行。建课、资料整理、首次使用时不问、不催；用户给了就记进该课的`课程信息.md`。有没有它，每项任务都做满，它只用来算离及格差多少和排优先级
+- 目标按课程区分：默认保过，不追求真正学懂，学习上只做拿分必需的部分；用户可以把某门课设成“高分（目标分N）”，建课时问一次，学期中随时可以改。所有课先排到保过线，剩余时间再分给高分课。用户交来的作业类任务不论目标都做满。依据和算法见[score-strategy.md](references/score-strategy.md)
+- 评分构成是可选信息：学期末才最终评定，什么时候给都行。建课、资料整理、首次使用时不问、不催；用户给了就记进该课的`课程信息.md`。有没有它，每项任务都做满，它只用来算离目标差多少和排优先级
 - 语言：讲义和对话用简体中文。作业、论文、pre用什么语言提交，每一次提交前都问用户，不沿用上次的答案；过程中的底稿一律用中文，翻译放在最后一步。细则见[deliverables.md](references/deliverables.md)
 - 考试边界：考试或限时测验进行中不代答。考前复习、模拟、押题照常帮忙。所有作业类（pre、论文、case study、task、个人和小组作业）都完整完成。不写学术诚信方面的劝诫，默认不生成AI使用声明，用户明确要求时才生成
 - 小组作业只做用户负责的部分，先出分工表并让用户确认自己的部分，不替全组写完。细则见[group-work.md](references/group-work.md)
@@ -195,7 +195,7 @@ study-buddy-data/
 - 用户询问本skill怎么用、能做什么时，读[introduction.md](references/introduction.md)
 - 遇到按现有细则无法解决的错误时，读[qa.md](references/qa.md)
 - 首次运行脚本、环境检查、填写`config.json`、`ocr_cli.py`报环境错误时，读[setup.md](references/setup.md)
-- 计算及格线、判断考核该做到什么程度时，读[pass-strategy.md](references/pass-strategy.md)
+- 计算目标线、判断考核该做到什么程度时，读[score-strategy.md](references/score-strategy.md)
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)
 - 整理考试提纲时，读[exam-notes.md](references/exam-notes.md)了解规则对应的产出、tex写法和编译失败怎么改；编译用`scripts/compile_tex.py`，需要安装MiKTeX或TeX Live，见[setup.md](references/setup.md)
