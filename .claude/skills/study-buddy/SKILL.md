@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线，也可以按课程设目标分冲高分。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“这门课想冲90”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。用户说“更新study-buddy”时也使用。不用于深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.12.0
+version: 3.12.1
 ---
 
 # 学习搭子（study-buddy）
@@ -89,6 +89,7 @@ study-buddy/
     ├── office_compat.py                  # Office转PDF的跨平台实现（Windows优先Office COM，否则LibreOffice），由ocr_cli.py、convert_submission.py调用
     ├── convert_submission.py             # 把Markdown转成提交格式（docx、pdf等）
     ├── compile_tex.py                    # 编译考试提纲的tex为PDF（xelatex），支持填空版、限页数自动缩放
+    ├── check_env.py                      # 只读检查运行环境（平台、Python包、LibreOffice、TeX），列出缺失项和安装命令
     └── check_update.py                   # 版本更新检测（由ocr_cli.py、build_pptx.py、convert_submission.py、compile_tex.py在结束时调用）
 ```
 
@@ -195,7 +196,7 @@ study-buddy-data/
 
 - 用户询问本skill怎么用、能做什么时，读[introduction.md](references/introduction.md)
 - 遇到按现有细则无法解决的错误时，读[qa.md](references/qa.md)
-- 首次运行脚本、环境检查、填写`config.json`、`ocr_cli.py`报环境错误时，读[setup.md](references/setup.md)
+- 首次运行脚本、环境检查（先运行`python scripts/check_env.py`）、填写`config.json`、`ocr_cli.py`报环境错误时，读[setup.md](references/setup.md)
 - 计算目标线、判断考核该做到什么程度时，读[score-strategy.md](references/score-strategy.md)
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)

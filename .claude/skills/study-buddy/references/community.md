@@ -7,7 +7,7 @@
 | 文件 | 是什么 | 有效期 |
 |---|---|---|
 | [buymecoffee.png](../assets/qrcode/buymecoffee.png) | 作者的赞赏码 | 长期 |
-| [group.png](../assets/qrcode/group.png) | 反馈群“study-buddy前瞻服”的微信群二维码 | 至2026-11-12 |
+| [group.png](../assets/qrcode/group.png) | 反馈群“study-buddy前瞻服”的微信群二维码 | 至2026-11-16 |
 | [contact.png](../assets/qrcode/contact.png) | 作者的个人微信（昵称“流年.”）加好友二维码 | 长期 |
 
 反馈渠道的优先级：群二维码在有效期内用群二维码；过期了用作者的微信二维码；Issues链接任何时候都附上。

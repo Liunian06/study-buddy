@@ -36,7 +36,7 @@
    - 空目录：说明我想从零开始，装在这个项目里，命令不带 -g：npx skills add Liunian06/study-buddy --skill study-buddy。skill 和之后生成的 study-buddy-data/ 都在这个目录下，方便统一管理。
    - 非空目录：说明我已经有自己的文件夹，不要把 skill 文件放进去，全局安装：npx skills add Liunian06/study-buddy --skill study-buddy -g。
    如果命令让我选择 agent，请选择你自己（我当前使用的这个 agent）。
-4. 安装完成后，从命令输出中确认 skill 的实际安装目录，阅读其中的 references/setup.md，按步骤安装 Python 依赖并运行验证命令。安装依赖前先问我要装到哪个 Python 环境。
+4. 安装完成后，从命令输出中确认 skill 的实际安装目录，阅读其中的 references/setup.md，运行 scripts/check_env.py 检查环境，再按结果和 setup.md 的“安装”一节安装缺少的 Python 依赖，需要时再装 LibreOffice。装依赖和系统软件前先问我，Python 依赖还要问我装到哪个 Python 环境；Mac 和 Linux 不要装 pywin32；TeX 只在我整理考试提纲时才需要，现在不用装。
 5. 全部完成后，告诉我安装结果（装在项目里还是全局），然后阅读安装目录下的 references/introduction.md，向我介绍这个 skill 的功能和使用流程，并问我想先做什么。
 
 注意：不要修改我的系统执行策略，不要询问、读取或复述任何 API key。

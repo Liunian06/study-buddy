@@ -71,7 +71,15 @@ sudo apt install texlive-xetex texlive-lang-chinese   # Linux
 
 ## 验证
 
-Windows：
+推荐直接运行检查脚本，Windows、macOS、Linux通用，只读、不安装、不联网：
+
+```bash
+python scripts/check_env.py      # macOS、Linux用python3
+```
+
+输出JSON：`platform`、`python_ok`、`missing_required`（缺的必需Python包和安装命令）、`found`（找到的LibreOffice、xelatex等路径）、`capabilities`（转PPT、转DOC、导出docx、生成pptx、编译提纲能不能用）、`missing_optional`（缺失项、影响和安装命令）。退出码：0没有缺必需依赖，1缺必需的Python包，2Python低于3.10。Windows上没装`pywin32`不算缺必需依赖，只要有LibreOffice和`python-pptx`，功能都能用。
+
+也可以手动验证。Windows：
 
 ```bash
 python -c "import pymupdf, win32com.client, requests, docx, pptx, markdown_it, PIL; print('ok')"
@@ -83,7 +91,7 @@ macOS、Linux：
 python3 -c "import pymupdf, requests, docx, pptx, markdown_it, PIL; print('ok')" && soffice --version
 ```
 
-预期输出：`ok`（macOS、Linux还有LibreOffice的版本号）。Windows上装了Office可以不装LibreOffice，没装Office则要装LibreOffice。
+预期输出：`ok`（macOS、Linux还有LibreOffice的版本号）。Windows上的手动命令里`win32com`缺失不代表不能用：没有`pywin32`时会改用LibreOffice和`python-pptx`，所以以`check_env.py`的`capabilities`为准。
 
 ## config.json
 
@@ -128,6 +136,7 @@ python3 -c "import pymupdf, requests, docx, pptx, markdown_it, PIL; print('ok')"
 | `scripts/build_pptx.py` | 从pre底稿生成pptx | `python scripts/build_pptx.py <底稿.md>` |
 | `scripts/convert_submission.py` | 把Markdown转成docx或pdf | `python scripts/convert_submission.py <稿.md> --format docx` |
 | `scripts/compile_tex.py` | 把考试提纲的tex编译成PDF | `python scripts/compile_tex.py <文件>.tex` |
+| `scripts/check_env.py` | 检查环境，列出缺失项和安装命令（不安装） | `python scripts/check_env.py` |
 
 ### ocr_cli.py的参数
 

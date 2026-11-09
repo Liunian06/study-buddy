@@ -15,7 +15,12 @@
 ## 步骤
 
 1. 记下工作目录是不是空目录（忽略`.claude`、`.agents`这类AI助手自己生成的隐藏目录），第5步用它决定要不要建项目规则文件。要在建`study-buddy-data/`之前看，建完就不空了
-2. 检查环境：按[setup.md](../references/setup.md)的“验证”一节检查操作系统（Windows、macOS、Linux都支持）、Office或LibreOffice、Python版本和依赖。缺依赖时先问用户要装到哪个Python环境，用户同意后再装，不改系统执行策略。不满足条件的，如实告诉用户哪几步用不了，如Office和LibreOffice都没有就转不了PPT和DOC
+2. 检查环境：运行`python scripts/check_env.py`（macOS、Linux用`python3`），它只读检查、不安装任何东西，输出平台、Python版本、缺哪些必需的Python包、各功能能不能用（转PPT和DOC、生成pptx、编译提纲）和缺失项的安装命令。按结果处理：
+   - `python_ok`为假：Python低于3.10，如实告诉用户，装不了就停在这里
+   - `missing_required`不为空：缺必需的Python包。先问用户要装到哪个Python环境，同意后运行结果里的`install`命令。Mac和Linux的命令里没有`pywin32`，不要自己加
+   - `missing_optional`里的项：逐项告诉用户它影响什么、命令是什么，由用户决定装不装，同意再装。系统软件（LibreOffice、TeX）装之前也要问，不自行安装。Windows上有Office可以不装LibreOffice；macOS、Linux转PPT和DOC必须有LibreOffice；TeX只有整理考试提纲才需要，用户暂时不整理就提一句“到时再装”，不要现在催
+   - 不改系统执行策略。用户选择不装的，如实告诉用户哪几步用不了（`capabilities`里为假的项），其余照常
+   - 各平台的安装命令和常见问题见[setup.md](../references/setup.md)的“安装”一节
 3. 建数据目录和配置文件：运行`python scripts/ocr_cli.py --init-config`，在当前目录下建好`study-buddy-data/`并从模板生成`config.json`；已经存在的不覆盖。把`config.json`的路径告诉用户，请用户自己填：`paddle.api_key`（OCR引擎，优先使用；`oxr.api_key`、`mineru.api_key`是另外两家的key，有就填。都不填则用OXR免费接口，失败再退用MinerU免登录轻量接口，速度和效果略差）和`vlm`下的`base_url`、`model`、`api_key`（转写图片，不填则图片标为“未转写”）。模板里的`sk-123`等是示例值，不是真key，见[setup.md](../references/setup.md)。agent不询问、不读取、不复述key
 4. 建学期总览：套用[semester.template.md](../assets/templates/semester.template.md)生成空的`学期规划.md`，填学期名、学期号和今天的日期，其余表格留空；文件已存在则不动
 5. 建项目规则文件（只有第1步记下的是空目录才做）：把[project-rules.template.md](../assets/templates/project-rules.template.md)的内容原样写成工作目录下的`CLAUDE.md`和`AGENTS.md`两个文件，让之后每次在这个目录里打开助手都先加载本skill，不会忘记处理规则。已经存在同名文件的不覆盖、不追加，告诉用户可以自己把这段规则加进去；非空目录不建，不往用户已有的文件夹里放文件

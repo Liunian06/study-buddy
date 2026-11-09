@@ -2,6 +2,28 @@
 
 study-buddy的版本记录。版本号规则：主版本.次版本.修订号。
 
+## [3.12.1] - 2026-11-09
+
+### 新增
+
+- 新增`scripts/check_env.py`，首次使用的环境检查改用它：只读检查，不安装、不联网、不启动Office，Windows、macOS、Linux通用。输出平台、Python版本、缺哪些必需的Python包（带安装命令）、各功能能不能用（转PPT、转DOC、导出docx为PDF、生成pptx、编译提纲）和缺失的可选项（LibreOffice、`python-pptx`、`pywin32`、TeX）及其安装命令。退出码0没有缺必需依赖，1缺必需的Python包，2Python低于3.10
+
+### 变更
+
+- 更新反馈群二维码`assets/qrcode/group.png`，有效期更新到2026-11-16（图片上写的是“11月16日前有效”），`references/community.md`里的日期同步修改
+- 首次使用工作流第2步重写：3.12.0时只写了“按`setup.md`的验证一节检查”，助手可能只跑验证命令，不去读各平台的安装命令，在Mac上有可能把装不了的`pywin32`也装进去，LibreOffice这种系统软件更没有被提到。现在改为先运行`check_env.py`，再按结果处理：缺必需包先问用户装到哪个Python环境；可选项逐项说明影响和命令，由用户决定装不装，系统软件装之前也要问；Mac、Linux不装`pywin32`；TeX只有整理考试提纲才需要，现在只提一句“到时再装”
+- `setup.md`的“验证”一节以`check_env.py`为主。Windows上没装`pywin32`不再算环境不合格：有LibreOffice和`python-pptx`时功能都能用，以脚本输出的`capabilities`为准；手动验证命令保留，并说明`win32com`缺失的含义
+- README的一键安装提示词第4步同步：先运行`check_env.py`，再按结果和`setup.md`安装；Mac、Linux不装`pywin32`；TeX现在不用装
+
+### 需要知道的
+
+- 在Windows开发机上测过：依赖齐全、模拟缺`python-pptx`和`pywin32`、模拟没有LibreOffice，三种情况的输出和退出码都符合预期。macOS和Linux上没有跑过
+- 脚本检查Office靠注册表里的COM注册项，不会启动PowerPoint或Word；只能说明装了，不能保证能正常打开
+
+### 迁移
+
+- 不需要迁移
+
 ## [3.12.0] - 2026-11-09
 
 ### 新增
