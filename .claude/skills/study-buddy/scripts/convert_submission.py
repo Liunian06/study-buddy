@@ -3,7 +3,7 @@
 
 docx：python-docx + markdown-it-py，保留标题层级、段落、粗斜体、行内代码、列表、表格、
       代码块、引用块、图片（相对路径）。公式（$$...$$）按原文保留为文本。
-pdf： 先生成docx，再用Word COM导出，所以依赖已安装的Word。
+pdf： 先生成docx，再导出：Windows优先用Word COM，没有Word则用LibreOffice；macOS、Linux用LibreOffice。
 不自动添加封面、页眉页脚、目录；这些按作业要求另行处理。
 
 用法：python convert_submission.py 稿.md --format docx|pdf [-o 输出路径]
@@ -14,6 +14,8 @@ import argparse
 import re
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 MAX_PIC_INCHES = 6.0
 COMMENT = re.compile(r"<!--.*?-->", re.S)
@@ -154,20 +156,12 @@ def convert_docx(md_path, out_path):
 
 
 def docx_to_pdf(docx_path, pdf_path):
+    """docx转PDF：Windows优先Word COM，没有就退到LibreOffice；macOS、Linux直接LibreOffice"""
+    from office_compat import OfficeUnavailable, convert_to_pdf
     try:
-        import win32com.client
-    except ImportError:
-        fail("缺少pywin32，无法导出PDF，见references/setup.md")
-    app = win32com.client.DispatchEx("Word.Application")
-    app.Visible = False
-    try:
-        doc = app.Documents.Open(str(docx_path.resolve()), ReadOnly=True)
-        try:
-            doc.ExportAsFixedFormat(str(pdf_path.resolve()), 17)
-        finally:
-            doc.Close(False)
-    finally:
-        app.Quit()
+        convert_to_pdf(docx_path, pdf_path, lambda m: print(m, file=sys.stderr))
+    except OfficeUnavailable as e:
+        fail(f"无法导出PDF：{e}；可以先生成docx，用Word或LibreOffice手动导出PDF")
 
 
 def free_path(p):

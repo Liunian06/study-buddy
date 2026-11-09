@@ -106,7 +106,7 @@ python scripts/compile_tex.py <文件>.tex --fill           # 闭卷填空版
 
 - 修错时只改出错的地方，不重写整个文件，否则会引入新错误
 - 5轮仍编译不过：保留tex，把最后的错误告诉用户，让用户决定，不要无限重试
-- 没装xelatex：告诉用户tex源文件已经保存；建议安装MiKTeX（`winget install MiKTeX.MiKTeX`，装完重开终端），装好后再编译。MiKTeX首次编译会自动下载缺少的宏包，需要联网，可能慢几分钟。不做备选的渲染路线
+- 没装xelatex：告诉用户tex源文件已经保存；建议按平台安装（Windows `winget install MiKTeX.MiKTeX`，macOS `brew install --cask mactex-no-gui`，Linux `sudo apt install texlive-xetex texlive-lang-chinese`，装完重开终端），装好后再编译。MiKTeX首次编译会自动下载缺少的宏包，需要联网，可能慢几分钟。不做备选的渲染路线
 
 ## 编译后检查
 
@@ -124,4 +124,5 @@ python scripts/compile_tex.py <文件>.tex --fill           # 闭卷填空版
 - 教材查阅指南里的页码是最容易出错的信息。拿不准的页码写“需核对”，不要编
 - 把规则当成建议是错的：规则允许带什么才做什么，不替用户冒险
 - 一个知识点没有讲义（资料缺失）时，在提纲里标“资料缺失”，不补内容
-- Windows下tex路径含中文没有问题，脚本会用临时的ASCII目录编译
+- tex路径含中文没有问题，脚本会用临时的ASCII目录编译
+- 模板里的`fontset=windows`不用改：`compile_tex.py`按平台自动换成`mac`或`fandol`字体集。各平台字体宽度略有差别，小抄限页数时以当前平台编译结果为准

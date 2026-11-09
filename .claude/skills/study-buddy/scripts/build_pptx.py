@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""从pre底稿的Markdown用PowerPoint COM生成pptx。
+"""从pre底稿的Markdown生成pptx。Windows优先用PowerPoint COM，没有就用python-pptx；macOS、Linux用python-pptx。
 
 只做排版：每页写入标题和要点，讲稿与备注写进备注栏，把引用的本地图片放进页面。
-不生成图表，不套模板和样式，用PowerPoint默认主题。
+不生成图表，不套模板和样式，用默认主题。
 
 底稿格式见 assets/templates/presentation.template.md：
     ### 第N页　标题
@@ -62,7 +62,8 @@ def parse_slides(md_path):
     return slides
 
 
-def build(slides, base_dir, out_path):
+def build_com(slides, base_dir, out_path):
+    """Windows：PowerPoint COM，用PowerPoint默认主题"""
     import win32com.client
     app = win32com.client.DispatchEx("PowerPoint.Application")
     try:
@@ -98,8 +99,70 @@ def build(slides, base_dir, out_path):
         app.Quit()
 
 
+def build_pptx_lib(slides, base_dir, out_path):
+    """跨平台：python-pptx，不依赖PowerPoint。版式与COM版一致：标题和内容，有图时正文占左侧45%、图放右侧；
+    页面用16:9（python-pptx默认模板是4:3，这里改成与新版PowerPoint相同的13.333×7.5英寸）"""
+    from pptx import Presentation
+    from pptx.util import Emu, Inches
+    from PIL import Image
+
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(13.333), Inches(7.5)
+    layout = prs.slide_layouts[1]  # 标题和内容
+    width = prs.slide_width
+    for s in slides:
+        sl = prs.slides.add_slide(layout)
+        sl.shapes.title.text = PLACEHOLDER.sub("", s["title"]).strip()
+        # 默认模板按4:3排版，换成16:9后占位符位置要跟着调
+        margin = Inches(0.9)
+        title = sl.shapes.title
+        title.left, title.top, title.width, title.height = margin, Inches(0.4), width - 2 * margin, Inches(1.3)
+        body = sl.placeholders[1]
+        body.left, body.top, body.width, body.height = margin, Inches(1.9), width - 2 * margin, Inches(4.9)
+        tf = body.text_frame
+        for i, b in enumerate(s["bullets"]):
+            para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+            para.text = b
+        imgs = [(base_dir / p).resolve() for p in s["images"]]
+        imgs = [p for p in imgs if p.exists()]
+        if imgs:
+            body.width = int(width * 0.45)
+            left = body.left + body.width + Inches(0.3)
+            avail_w, avail_h = width - left - Inches(0.4), body.height
+            with Image.open(imgs[0]) as im:
+                iw, ih = im.size
+            ratio = min(avail_w / iw, avail_h / ih)  # 按可用区域等比缩放，EMU为单位
+            pw, ph = int(iw * ratio), int(ih * ratio)
+            sl.shapes.add_picture(str(imgs[0]), left, body.top, Emu(pw), Emu(ph))
+        notes = "\n".join(s["script"] + (["【备注】"] + s["note"] if s["note"] else []))
+        if notes:
+            sl.notes_slide.notes_text_frame.text = notes
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    prs.save(str(out_path))
+
+
+def build(slides, base_dir, out_path):
+    """Windows优先用PowerPoint COM；没装PowerPoint、没装pywin32或COM出错时退到python-pptx。macOS、Linux直接用python-pptx。
+    返回实际用的方式"""
+    if sys.platform == "win32":
+        try:
+            build_com(slides, base_dir, out_path)
+            return "PowerPoint"
+        except Exception as e:  # noqa: BLE001  ImportError（没装pywin32）、COM启动失败等
+            why = "没有安装pywin32" if isinstance(e, ImportError) else f"PowerPoint COM失败（{str(e)[:80]}）"
+            print(f"{why}，改用python-pptx生成", file=sys.stderr)
+            out_path.unlink(missing_ok=True)
+    try:
+        import pptx  # noqa: F401
+    except ImportError:
+        print("缺少python-pptx：python -m pip install python-pptx，见references/setup.md", file=sys.stderr)
+        sys.exit(2)
+    build_pptx_lib(slides, base_dir, out_path)
+    return "python-pptx"
+
+
 def main():
-    ap = argparse.ArgumentParser(description="从pre底稿Markdown生成pptx（PowerPoint COM）")
+    ap = argparse.ArgumentParser(description="从pre底稿Markdown生成pptx（PowerPoint COM或python-pptx）")
     ap.add_argument("markdown", help="pre底稿，最终提交语言的版本")
     ap.add_argument("-o", "--output", help="输出路径，默认与底稿同名的.pptx；已存在时另存为-2、-3")
     args = ap.parse_args()
@@ -108,12 +171,6 @@ def main():
     if not md.exists():
         print(f"文件不存在：{md}", file=sys.stderr)
         sys.exit(2)
-    try:
-        import win32com.client  # noqa: F401
-    except ImportError:
-        print("缺少pywin32，见references/setup.md", file=sys.stderr)
-        sys.exit(2)
-
     slides = parse_slides(md)
     if not slides:
         print("底稿里没有找到“### 第N页 标题”格式的幻灯片", file=sys.stderr)
@@ -123,9 +180,9 @@ def main():
     while out.exists():
         out = out.with_name(f"{stem}-{n}.pptx")
         n += 1
-    build(slides, md.parent, out)
+    how = build(slides, md.parent, out)
     missing = [p for s in slides for p in s["images"] if not (md.parent / p.strip("<>")).exists()]
-    print(f"已生成：{out}（{len(slides)}页）")
+    print(f"已生成：{out}（{len(slides)}页，{how}）")
     if missing:
         print("以下图片不存在，已跳过：" + "，".join(missing), file=sys.stderr)
 

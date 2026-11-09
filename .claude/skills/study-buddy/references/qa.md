@@ -23,8 +23,8 @@
 | 课程文件夹编号不对 | `学期规划.md`丢失或学期号错 | 问用户当前学期，按[data-layout.md](data-layout.md)修正，已有文件夹不改名 |
 | 摘要警告“默认引擎是paddle，但key还没填”，处理比较慢，或页码只有范围、没有表格公式 | 没填Paddle key，从优先级链的下一档开始（有oxr key用oxr商业版，再是mineru token，都没有就用OXR免费接口）；免费OXR同一时间只处理一个任务，约5秒一页；最后一档MinerU轻量接口没有分页和表格公式识别 | 申请key填进`config.json`的`paddle.api_key`，或填`oxr.api_key`、`mineru.api_key`，见[setup.md](setup.md) |
 | 摘要警告“xx失败……改用xx”，处理很慢或OXR频繁报“已有任务在进行” | 链上某一档key无效、额度用尽或排队超时，退到了下一档，资料因此上传到了另一家供应商；免费OXR同一时间只处理一个任务，约5秒一页 | 检查摘要里写的那一档的key是否有效，或稍后重跑；也可以填Paddle key，见[setup.md](setup.md) |
-| 没有Office的电脑上转不了PPT | COM依赖Office | 请用户手动另存为PDF后再交给脚本 |
-| `compile_tex.py`返回`no_engine` | 没装xelatex | 装MiKTeX：`winget install MiKTeX.MiKTeX`，装完重开终端，tex源文件已保存，装好后重新编译，见[setup.md](setup.md) |
+| 没有Office的电脑上转不了PPT | Windows上脚本会自动退到LibreOffice，两者都没有才失败；macOS、Linux直接用LibreOffice | 按`setup.md`装LibreOffice；仍不行就请用户手动另存为PDF后再交给脚本 |
+| `compile_tex.py`返回`no_engine` | 没装xelatex | 按返回的`message`装：Windows `winget install MiKTeX.MiKTeX`，macOS `brew install --cask mactex-no-gui`，Linux `sudo apt install texlive-xetex texlive-lang-chinese`；装完重开终端，tex源文件已保存，装好后重新编译，见[setup.md](setup.md) |
 | MiKTeX首次编译很久没结果，或超时 | 在联网下载缺少的宏包 | 确认网络可用，再编译一次；仍超时就用`--keep`看临时目录里的日志 |
 | 提纲PDF里有的字显示成空白 | 字体里没有这个字符，`warnings`里会列出 | 换成常见字符；数学环境里不要放汉字，用`\text{}` |
 | 开卷提纲速查表页码显示“??” | 页码引用需要多编译一遍才稳定 | 再运行一次`compile_tex.py` |
@@ -43,7 +43,7 @@
 ## 环境
 - 客户端与版本：
 - 操作系统：
-- Office版本：
+- 操作系统（Windows、macOS或Linux）、Office或LibreOffice版本：
 - study-buddy版本：
 
 ## 复现步骤

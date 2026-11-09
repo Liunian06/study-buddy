@@ -41,7 +41,7 @@
 - 默认目标是保过，不追求高分或学透；也可以按课程设目标分冲高分，所有课先保过，剩余时间再投给高分课，目标和时间对不上时会如实告诉你差多少；不讲课程知识在产业里怎么用
 - 考试或限时测验进行中，我不代答。考前复习、模拟照常帮忙
 - 不做选课咨询和职业规划
-- 依赖Windows和Office：转换PPT和DOC、生成pptx需要
+- 支持Windows、macOS和Linux。Windows上默认用Office（PowerPoint、Word）转换PPT和DOC、生成pptx，没有Office时自动改用LibreOffice和python-pptx；macOS、Linux直接用LibreOffice和python-pptx，需要先装LibreOffice。LibreOffice转出的PDF版式与Office有细微差别
 - 课件会上传到OCR引擎（默认百度Paddle，需要你申请免费key；没有时按“Paddle key → SoMark OXR key → MinerU token → OXR免费接口 → MinerU免登录轻量接口”的顺序选第一个可用的，某一档失败再依次退到后面的档位，免费档位速度和效果略差），图片会发给你配置的VLM服务商
 - 最低小时数是经验估算，会随你的实际完成情况校准
 - 论文引用格式的细则（GB/T 7714）来自二手资料，没对照标准原文，老师有模板时以模板为准

@@ -2,6 +2,29 @@
 
 study-buddy的版本记录。版本号规则：主版本.次版本.修订号。
 
+## [3.12.0] - 2026-11-09
+
+### 新增
+
+- 支持macOS和Linux：之前四个脚本里有三个直接依赖Windows的Office COM（`pywin32`），Mac用户装上后资料整理的第一步（PPT、DOC转PDF）就会失败。现在按平台选工具，Windows上的默认行为不变
+  - 新增`scripts/office_compat.py`，`ocr_cli.py`和`convert_submission.py`共用：Windows先用Office COM，没装Office、没装`pywin32`或COM出错时自动退到LibreOffice（`soffice --headless`）；macOS、Linux直接用LibreOffice。两者都没有时报环境错误并给出对应平台的安装命令，也可以让用户手动另存为PDF
+  - `build_pptx.py`：Windows优先PowerPoint COM，没有PowerPoint或COM出错时退到`python-pptx`；macOS、Linux直接用`python-pptx`。版式和COM版一致（标题和内容，有图时正文占左侧45%、图在右侧，备注写进备注栏），页面用16:9。成功提示末尾会写明用的是PowerPoint还是python-pptx
+  - `compile_tex.py`：编译时把模板里的`fontset=windows`换成当前平台的ctex字体集（Windows是`windows`，macOS是`mac`，Linux是`fandol`），tex源文件和模板不用改；macOS上还会到`/Library/TeX/texbin`等位置找`xelatex`；找不到时的安装建议按平台给（MiKTeX、MacTeX、TeX Live）。输出JSON新增`fontset`字段
+  - 依赖：`python-pptx==1.0.2`从“可选”改为推荐安装（没有PowerPoint时靠它生成pptx）；macOS、Linux不装`pywin32`（只有Windows能装）。`setup.md`分平台写了安装命令、验证命令和常见问题，README、官网、`introduction.md`、`qa.md`和相关工作流的“依赖Windows和Office”表述同步改掉
+
+### 需要知道的
+
+- 在Windows开发机上测过：LibreOffice转PDF（含中文路径）、Office COM失败时回退LibreOffice、两者都没有时的报错、`python-pptx`生成的pptx（含图片和备注）用LibreOffice渲染检查版式、四个脚本在Windows上的默认路径不变（`build_pptx.py`仍用PowerPoint，`compile_tex.py`仍用`windows`字体集）
+- **没有在真实的macOS或Linux上跑过**：Mac路径只做了逻辑和命令层面的模拟（`soffice`在`/Applications/LibreOffice.app`下的查找、`mac`字体集、`/Library/TeX/texbin`查找），安装命令（`brew install --cask libreoffice mactex-no-gui`等）也没有实测。Mac用户遇到问题请反馈
+- LibreOffice转出的PDF与Office版式有细微差别（特殊字体、艺术字），OCR取字不受影响；对提交PDF的版式有严格要求时，建议在装了Word的电脑上导出
+- `python-pptx`版的pptx使用它自带的默认模板，外观比PowerPoint默认主题朴素一些，用户本来就要在PowerPoint里调样式，不影响使用
+- 不同平台的中文字体不同，同一份小抄在各平台编译出的页数可能略有差别，限页数时以当前平台的编译结果为准
+- 没有`pywin32`的Windows环境也能用了：转PDF退到LibreOffice，生成pptx退到`python-pptx`
+
+### 迁移
+
+- 不需要迁移。Windows用户行为不变；想在没有Office的电脑上用，装LibreOffice和`python-pptx`即可
+
 ## [3.11.2] - 2026-11-08
 
 ### 变更

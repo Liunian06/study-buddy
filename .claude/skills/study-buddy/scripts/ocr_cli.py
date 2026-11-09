@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """把课件、参考资料、往年题、作业要求转成带页码和图片转写的Markdown草稿。
 
-流程：Office转PDF、切分、上传OCR引擎（OXR、Paddle或MinerU）、按页组装、下载图片、VLM转写图片、合并、校验。
+流程：Office转PDF（Windows用Office COM，没有则LibreOffice；Mac、Linux用LibreOffice）、切分、上传OCR引擎（OXR、Paddle或MinerU）、按页组装、下载图片、VLM转写图片、合并、校验。
 用--engine选择引擎，默认取config.json里的engine，没写则用paddle（PaddleOCR-VL-1.6）。
 优先级：paddle key → oxr key（商业版）→ mineru key（精准解析）→ oxr免费接口 → mineru免登录轻量接口。paddle没填key时自动在后几档里选；mineru失败时退用oxr（有oxr key用商业版）。
 结果以JSON摘要输出到stdout，日志输出到stderr。
@@ -141,45 +141,13 @@ def load_config(data_dir, create=True):
 
 
 def office_to_pdf(src, out_pdf):
+    """Office转PDF：Windows优先Office COM，没有就退到LibreOffice；macOS、Linux直接LibreOffice。细节见office_compat.py"""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from office_compat import OfficeUnavailable, convert_to_pdf
     try:
-        import win32com.client
-    except ImportError:
-        fail_env("缺少pywin32，无法转换Office文件，见references/setup.md")
-    src_s, out_s = str(src.resolve()), str(out_pdf.resolve())
-    ext = src.suffix.lower()
-    if ext in OFFICE_PPT:
-        app = win32com.client.DispatchEx("PowerPoint.Application")
-        try:
-            try:
-                pres = app.Presentations.Open(src_s, True, False, False)
-            except Exception as ex:  # noqa: BLE001
-                # 内容有兼容性问题时PowerPoint会弹“尝试修复”，这里改用“打开并修复”再试，用修复后的内容转PDF（原文件不动）
-                log(f"  PowerPoint直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
-                pres = app.Presentations.Open2007(src_s, True, False, False, True)  # OpenAndRepair
-            try:
-                pres.SaveAs(out_s, 32)  # ppSaveAsPDF
-            finally:
-                pres.Close()
-        finally:
-            app.Quit()
-    else:
-        app = win32com.client.DispatchEx("Word.Application")
-        app.Visible = False
-        try:
-            try:
-                doc = app.Documents.Open(src_s, ReadOnly=True)
-            except Exception as ex:  # noqa: BLE001
-                # 同PPT：直接打开失败后改用“打开并修复”，原文件不动
-                log(f"  Word直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
-                doc = app.Documents.Open(src_s, ReadOnly=True, OpenAndRepair=True)
-            try:
-                doc.ExportAsFixedFormat(out_s, 17)  # wdExportFormatPDF
-            finally:
-                doc.Close(False)
-        finally:
-            app.Quit()
-    if not out_pdf.exists():
-        raise RuntimeError("Office未生成PDF")
+        convert_to_pdf(src, out_pdf, log)
+    except OfficeUnavailable as e:
+        fail_env(f"无法转换{src.name}：{e}；也可以手动另存为PDF再交给脚本，见references/setup.md")
 
 
 def cached_office_pdf(src, course_dir):
@@ -192,7 +160,7 @@ def cached_office_pdf(src, course_dir):
         log(f"  复用已转换的PDF：{src.name}")
         return pdf
     pdf.parent.mkdir(parents=True, exist_ok=True)
-    log(f"  转PDF（Office COM）：{src.name}")
+    log(f"  转PDF：{src.name}")
     tmp = pdf.with_suffix(".part.pdf")
     office_to_pdf(src, tmp)
     tmp.replace(pdf)  # 转换成功才落盘，中断不会留下半截缓存

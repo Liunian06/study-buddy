@@ -24,8 +24,20 @@ LADDER = [(8.5, 10.2, 10), (8, 9.6, 9), (7.5, 9.0, 8), (7, 8.4, 7), (6.5, 7.8, 6
 MIN_READABLE = 7.0  # 小于这个字号打印后可能难以辨认，给出警告
 TIMEOUT = 300
 
-INSTALL_HINT = ("没有找到xelatex。请安装MiKTeX：winget install MiKTeX.MiKTeX（装完重开终端），"
+def _install_hint():
+    if sys.platform == "win32":
+        return ("没有找到xelatex。请安装MiKTeX：winget install MiKTeX.MiKTeX（装完重开终端），"
                 "或安装TeX Live，见references/setup.md")
+    if sys.platform == "darwin":
+        return ("没有找到xelatex。请安装MacTeX：brew install --cask mactex-no-gui（装完重开终端；"
+                "也可以装体积小得多的BasicTeX再用tlmgr补宏包），见references/setup.md")
+    return "没有找到xelatex。请安装TeX Live，如 sudo apt install texlive-xetex texlive-lang-chinese，见references/setup.md"
+
+
+INSTALL_HINT = _install_hint()
+
+# 模板里写的是fontset=windows（宋体、黑体、楷体）；编译时按平台换成ctex对应的字体集，模板本身不用改
+FONTSET = {"win32": "windows", "darwin": "mac"}.get(sys.platform, "fandol")
 
 ERROR_HINTS = [
     (r"Undefined control sequence", "命令未定义：检查拼写，或是否用了模板里没有的宏；不要自己新增宏和宏包"),
@@ -52,13 +64,20 @@ def find_engine():
     p = shutil.which("xelatex")
     if p:
         return p
-    # MiKTeX刚装完时当前终端的PATH可能还没刷新，按默认安装位置找一下
-    local = os.environ.get("LOCALAPPDATA", "")
-    prog = os.environ.get("ProgramFiles", "")
-    for base in (Path(local) / "Programs" / "MiKTeX", Path(prog) / "MiKTeX"):
-        exe = base / "miktex" / "bin" / "x64" / "xelatex.exe"
-        if exe.exists():
-            return str(exe)
+    if sys.platform == "win32":
+        # MiKTeX刚装完时当前终端的PATH可能还没刷新，按默认安装位置找一下
+        local = os.environ.get("LOCALAPPDATA", "")
+        prog = os.environ.get("ProgramFiles", "")
+        for base in (Path(local) / "Programs" / "MiKTeX", Path(prog) / "MiKTeX"):
+            exe = base / "miktex" / "bin" / "x64" / "xelatex.exe"
+            if exe.exists():
+                return str(exe)
+    elif sys.platform == "darwin":
+        # MacTeX、BasicTeX装在/Library/TeX/texbin，Homebrew的cask装完终端没重开时PATH里可能还没有
+        for d in ("/Library/TeX/texbin", "/usr/local/texlive/bin", "/opt/homebrew/bin", "/usr/local/bin"):
+            exe = Path(d) / "xelatex"
+            if exe.exists():
+                return str(exe)
     return None
 
 
@@ -207,6 +226,8 @@ def main():
     base_defs = r"\def\SBFILL{1}" if args.fill else ""
 
     work = Path(tempfile.mkdtemp(prefix="sbtex_"))  # 临时目录用ASCII路径，避开中文和空格路径的麻烦
+    # fontset=windows换成当前平台的字体集；Windows上原样不动
+    src_text = src_text.replace("fontset=windows", f"fontset={FONTSET}")
     (work / "main.tex").write_text(src_text, encoding="utf-8")
 
     attempts = [(None, None)] + [(f"{s}pt", (s, l, m)) for s, l, m in LADDER]
@@ -255,6 +276,7 @@ def main():
             shutil.rmtree(work, ignore_errors=True)
 
     result["engine"] = "MiKTeX" if miktex else "xelatex"
+    result["fontset"] = FONTSET
     emit(result, code)
 
 

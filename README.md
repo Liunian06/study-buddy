@@ -31,7 +31,7 @@
 请帮我安装 study-buddy 这个 skill，仓库地址：https://github.com/Liunian06/study-buddy
 
 1. 先检查当前工作目录是不是空目录（可以忽略 .claude、.agents 这类 AI 助手自己生成的隐藏目录），记下结果，第 3 步用它决定安装位置。
-2. 检查当前系统是否为 Windows、是否已安装 PowerPoint 和 Word、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
+2. 检查当前系统（Windows、macOS、Linux 都支持）、是否已安装 Office（PowerPoint 和 Word）或 LibreOffice（Windows 上二选一即可，macOS 和 Linux 需要 LibreOffice）、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
 3. 安装 skill：
    - 空目录：说明我想从零开始，装在这个项目里，命令不带 -g：npx skills add Liunian06/study-buddy --skill study-buddy。skill 和之后生成的 study-buddy-data/ 都在这个目录下，方便统一管理。
    - 非空目录：说明我已经有自己的文件夹，不要把 skill 文件放进去，全局安装：npx skills add Liunian06/study-buddy --skill study-buddy -g。
@@ -47,7 +47,7 @@
 
 <br>
 
-需要 Windows 和已安装的 PowerPoint、Word，[Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
+支持 Windows、macOS 和 Linux。Windows 上装有 PowerPoint 和 Word 时默认用它们，没有时自动改用 LibreOffice；macOS 和 Linux 需要安装 [LibreOffice](https://www.libreoffice.org/)。另外需要 [Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
 
 1. 安装 skill，按提示选择你使用的 AI 编程助手。装在哪里看你的情况：
 
@@ -65,15 +65,21 @@ npx skills add Liunian06/study-buddy --skill study-buddy -g
 2. 安装 Python 依赖，详见 [setup.md](.claude/skills/study-buddy/references/setup.md)：
 
 ```bash
-python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 markdown-it-py pillow
+# Windows
+python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 python-pptx==1.0.2 markdown-it-py pillow
+
+# macOS、Linux（不装 pywin32）
+python3 -m pip install pymupdf==2.0 requests python-docx==1.2.0 python-pptx==1.0.2 markdown-it-py pillow
 ```
 
 3. 在 AI 编程助手里说一句“帮我初始化”，它会检查环境，在工作目录下建好 `study-buddy-data/` 并生成 `config.json`。按 setup.md 自己填好 OCR 引擎和 VLM 服务的 key，不填 VLM 也能用，只是图片不会被转写。
 
-4. 可选：要整理考试提纲（开卷提纲、小抄、闭卷背诵稿），需要安装 TeX，默认用 MiKTeX，装完重开终端。不整理提纲可以不装：
+4. 可选：要整理考试提纲（开卷提纲、小抄、闭卷背诵稿），需要安装 TeX，装完重开终端。不整理提纲可以不装：
 
 ```bash
-winget install MiKTeX.MiKTeX
+winget install MiKTeX.MiKTeX                          # Windows
+brew install --cask mactex-no-gui                     # macOS
+sudo apt install texlive-xetex texlive-lang-chinese   # Linux
 ```
 
 也可以在 [Releases](https://github.com/Liunian06/study-buddy/releases/latest) 下载 `study-buddy-v<版本号>.zip`，解压后把 `study-buddy/` 目录放进你的 AI 编程助手的 skills 目录（如 `~/.claude/skills/`）。
@@ -116,7 +122,7 @@ skill 包含 10 个工作流，入口是 [SKILL.md](.claude/skills/study-buddy/S
 - **设计学习风格**：用第一个知识点出几种讲法的样张（教科书式、苏格拉底式、故事式），你选一种、混搭或自己设计，讲义和带学都按它来
 - **跟课学习**：按讲义逐节讲解、小测、错题本
 - **期末速通**：速通计划、模拟卷、考前速记清单
-- **考试提纲**：按考试规则整理可打印的提纲。开卷做全、带目录和速查表；只带一张 A4 做小抄；只带教材做教材查阅指南；闭卷做背诵稿和填空版。内容写成 tex 编译成 PDF，公式能正常显示，需要安装 MiKTeX
+- **考试提纲**：按考试规则整理可打印的提纲。开卷做全、带目录和速查表；只带一张 A4 做小抄；只带教材做教材查阅指南；闭卷做背诵稿和填空版。内容写成 tex 编译成 PDF，公式能正常显示，需要安装 TeX（Windows 用 MiKTeX，macOS 用 MacTeX，Linux 用 TeX Live）
 - **Presentation**：pre 底稿、讲稿、Q&A 和 pptx
 - **课程论文**：完整论文和提交文件
 - **完成作业**：case study、task、报告、习题的完整作业和提交文件
@@ -166,7 +172,7 @@ study-buddy-data/
 
 - 默认目标是保过，不追求高分或学透；想冲高分的课可以单独设目标分
 - 考试或限时测验进行中不代答，考前复习和模拟照常帮忙
-- 依赖 Windows 和 Office：转换 PPT 和 DOC、生成 pptx、导出 pdf 都通过 Office 的 COM 接口完成
+- 转换 PPT 和 DOC、生成 pptx、导出 pdf：Windows 优先用 Office（COM 接口），没有 Office 时自动改用 LibreOffice 和 python-pptx；macOS 和 Linux 直接用 LibreOffice 和 python-pptx。LibreOffice 转出的 PDF 版式与 Office 有细微差别；macOS 和 Linux 的路径只在逻辑层面模拟验证过，欢迎反馈
 - 课件会上传到 OCR 引擎（默认百度 Paddle，需要自己申请免费 key；没有时按“Paddle key → SoMark OXR key → MinerU token → OXR 免费接口 → MinerU 免登录轻量接口”的顺序选第一个可用的，某一档失败再依次退到后面的档位，免费档位速度和效果略差），图片会发给你配置的 VLM 服务商
 
 遇到问题请在 [Issues](../../issues) 留言。

@@ -1,7 +1,7 @@
 ---
 name: study-buddy
 description: 帮同时修多门晦涩课程的大学生，用最少时间让每门课的考核达到及格线，也可以按课程设目标分冲高分。它能把老师发的大量课件和资料转写成按知识点排布的讲义，规划全学期每周要准备什么，按讲义逐节带学，考前根据剩余时间和往年题速通全部考点，并完整完成个人或小组的presentation、课程论文、case study、task和其他作业。当用户说“这门课怎么及格”“这门课想冲90”“老师发了一堆课件”“带我学下一节”“后天考试”“下周要做pre”“要交一篇论文”“这个case study怎么写”时使用，即使用户没有提到“学习”。用户说“更新study-buddy”时也使用。不用于深入研究，不在考试或限时测验进行中代答，也不做选课咨询和职业规划。
-version: 3.11.2
+version: 3.12.0
 ---
 
 # 学习搭子（study-buddy）
@@ -30,7 +30,7 @@ study-buddy/
 ├── references/
 │   ├── introduction.md                   # 使用指南
 │   ├── qa.md                             # 疑难问题处理
-│   ├── setup.md                          # Python依赖、Office COM检查、OCR接口检查、config.json的填写方法、ocr_cli.py的参数与退出码
+│   ├── setup.md                          # 各平台的Python依赖、Office COM与LibreOffice检查、OCR接口检查、config.json的填写方法、ocr_cli.py的参数与退出码
 │   ├── data-layout.md                    # 数据目录、课程与chapter编号、命名与覆写规则
 │   ├── score-strategy.md                 # 目标（保过/高分）、差距计算、考核性价比、保过方案和高分方案
 │   ├── material-processing.md            # 范围确认、草稿与图片转写的读法、知识结构重排、考点信号、讲义写法
@@ -85,10 +85,11 @@ study-buddy/
 │       └── contact.png                   # 作者的微信二维码，群二维码过期后改给这张
 └── scripts/
     ├── ocr_cli.py                        # 转PDF、切分、调用OCR引擎（OXR、Paddle或MinerU）、组装草稿、下载图片、VLM转写图片、校验
-    ├── build_pptx.py                     # 用PowerPoint COM从Markdown生成pptx
+    ├── build_pptx.py                     # 从Markdown生成pptx（Windows优先PowerPoint COM，否则python-pptx）
+    ├── office_compat.py                  # Office转PDF的跨平台实现（Windows优先Office COM，否则LibreOffice），由ocr_cli.py、convert_submission.py调用
     ├── convert_submission.py             # 把Markdown转成提交格式（docx、pdf等）
     ├── compile_tex.py                    # 编译考试提纲的tex为PDF（xelatex），支持填空版、限页数自动缩放
-    └── check_update.py                   # 版本更新检测（由上面四个脚本在结束时调用）
+    └── check_update.py                   # 版本更新检测（由ocr_cli.py、build_pptx.py、convert_submission.py、compile_tex.py在结束时调用）
 ```
 
 用户数据保存在`<工作目录>/study-buddy-data/`，结构如下：
@@ -156,7 +157,7 @@ study-buddy-data/
 - 先读后写：处理资料时只读`草稿/`里的文本（包括图片转写），不直接打开`媒体/`里的图片；每个agent在一次对话里能看的图片数量都有限，图片内容交给`ocr_cli.py`里的VLM转写
 - 密钥：`config.json`里的`api_key`由用户自己填写。不询问key，不读取、不复述、不写进日志和对话
 - 外部服务：课件会上传到OCR引擎（默认百度Paddle，需用户自己申请key；没填时按“paddle key → SoMark OXR key → MinerU token → OXR免费接口 → MinerU免登录轻量接口”的顺序选第一个可用的，某一档失败再依次退到后面的档位），图片会发给用户在`config.json`里配置的VLM服务商。用户已同意，学习资料按无隐私要求处理，运行前不再提示
-- 环境：转换PPT和DOC依赖Windows和已安装的Office（COM），环境检查见[setup.md](references/setup.md)
+- 环境：支持Windows、macOS、Linux。转换PPT和DOC：Windows优先Office COM，没有Office时退到LibreOffice；macOS、Linux直接用LibreOffice。生成pptx：Windows优先PowerPoint COM，否则python-pptx。环境检查见[setup.md](references/setup.md)
 - 不编造：论文和作业里的文献、数据、案例事实只用真实、核实过的；没核实的明确标出来。【待补充】的内容不当作结论使用
 - 覆盖前确认：已有文件默认不覆盖，新版本另存为`-2`、`-3`；`学期规划.md`、`讲义目录.md`、`错题本.md`做增量更新
 - 赞赏与反馈：用户自己表达了“好用”“谢谢”这类满意时，在回应之后给赞赏码`assets/qrcode/buymecoffee.png`，同一次对话最多一次；脚本报错、自行排查后仍解决不了，或脚本异常退出时，在问题描述之后给反馈群二维码`assets/qrcode/group.png`和Issues链接；群二维码过期后改给作者的微信二维码`assets/qrcode/contact.png`。展示条件、方式和群二维码的有效期见[community.md](references/community.md)
@@ -198,7 +199,7 @@ study-buddy-data/
 - 计算目标线、判断考核该做到什么程度时，读[score-strategy.md](references/score-strategy.md)
 - 小组任务分工、检查各部分衔接时，读[group-work.md](references/group-work.md)
 - 作业类提交前确定语言、翻译、画图、转提交格式时，读[deliverables.md](references/deliverables.md)；提交前自查用[submission-check.template.md](assets/templates/submission-check.template.md)
-- 整理考试提纲时，读[exam-notes.md](references/exam-notes.md)了解规则对应的产出、tex写法和编译失败怎么改；编译用`scripts/compile_tex.py`，需要安装MiKTeX或TeX Live，见[setup.md](references/setup.md)
+- 整理考试提纲时，读[exam-notes.md](references/exam-notes.md)了解规则对应的产出、tex写法和编译失败怎么改；编译用`scripts/compile_tex.py`，需要安装MiKTeX、MacTeX或TeX Live，见[setup.md](references/setup.md)
 - `scripts/check_update.py`检测GitHub上是否有新版本，仅用标准库。`ocr_cli.py`、`build_pptx.py`、`convert_submission.py`、`compile_tex.py`结束时会自动调用：查不到就不提示；有新版本时在stderr输出更新命令、“自动更新：是/否”和本地版本之后的CHANGELOG段落，处理方式见上面全局规则的“自动更新”。设置环境变量`STUDY_BUDDY_NO_UPDATE_CHECK=1`可关闭检测和自动更新
 - 写讲义、带学、设计学习风格时，读[style-guide.md](references/style-guide.md)了解风格的格式和不能改的边界
 - 其余reference、模板、示例由各workflow在对应步骤指定

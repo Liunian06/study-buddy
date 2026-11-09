@@ -1,10 +1,17 @@
 # 运行环境与安装
 
-本skill的脚本依赖Windows和已安装的Office：`ocr_cli.py`转换PPT和DOC、`build_pptx.py`生成pptx、`convert_submission.py`导出PDF，都通过Office的COM接口完成。没有Office的电脑上，这几步无法运行。
+本skill支持Windows、macOS和Linux。涉及Office文件的三步（`ocr_cli.py`转换PPT和DOC、`build_pptx.py`生成pptx、`convert_submission.py`导出PDF）按平台选工具，由脚本自动判断：
+
+| 平台 | 转PPT、DOC、docx为PDF | 生成pptx |
+|---|---|---|
+| Windows | 默认Office COM（PowerPoint、Word），排版最接近原文件；没装Office或COM出错时自动退到LibreOffice | 默认PowerPoint COM；没装PowerPoint或COM出错时自动退到`python-pptx` |
+| macOS、Linux | LibreOffice（`soffice --headless`） | `python-pptx` |
+
+Windows上两者都没有时，转换步骤报错并给出安装建议；也可以让用户手动另存为PDF后再交给脚本。macOS、Linux没有Office COM，所以不装`pywin32`。
 
 ## 环境要求
 
-- Windows，已安装PowerPoint和Word（本机验证版本为16.0）
+- Windows 10/11（本机验证），或macOS、Linux。Windows上建议安装Office（PowerPoint和Word，本机验证版本为16.0）；没有Office或在macOS、Linux上，需要安装LibreOffice：Windows `winget install TheDocumentFoundation.LibreOffice`，macOS `brew install --cask libreoffice`，Linux `sudo apt install libreoffice`
 - Python 3.10以上（本机验证版本为3.14）
 - OCR引擎有三家供应商：Paddle（百度，PaddleOCR-VL-1.6）、OXR（SoMark）、MinerU，key互不通用。默认用Paddle。没填某家的key时，该家只能用免费或免登录的接口（OXR免费接口、MinerU轻量接口），Paddle没有免费路径。
 - 自动选择和失败退路用同一条优先级链：**paddle key → oxr key（商业版）→ mineru key（精准解析）→ oxr免费接口 → mineru免登录轻量接口**。没填key的档位跳过（oxr免费接口、mineru轻量接口不需要key，永远在链里）；运行从第一个可用的档位开始，某一档失败时依次退到后面的档位，退用的原因记在摘要的`warnings`里。用`--engine`切换起点，或在`config.json`里写`engine`：
@@ -21,32 +28,62 @@
 
 ## 安装
 
+Windows：
+
 ```bash
-python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 markdown-it-py pillow
+python -m pip install pymupdf==2.0 pywin32==312 requests python-docx==1.2.0 python-pptx==1.0.2 markdown-it-py pillow
 ```
 
-`python-pptx`不是必需依赖，只在检查pptx内容时用到。
+macOS、Linux（不装`pywin32`，它只有Windows能装）：
+
+```bash
+python3 -m pip install pymupdf==2.0 requests python-docx==1.2.0 python-pptx==1.0.2 markdown-it-py pillow
+```
+
+`python-pptx`是没有PowerPoint时生成pptx的后备方案，Windows上装着也无妨，没装PowerPoint时才会用到。
+
+### LibreOffice（macOS、Linux必需；Windows没有Office时需要）
+
+```bash
+brew install --cask libreoffice          # macOS
+sudo apt install libreoffice             # Linux（Debian、Ubuntu）
+winget install TheDocumentFoundation.LibreOffice   # Windows
+```
+
+- 脚本会在PATH和各系统的默认安装位置（macOS是`/Applications/LibreOffice.app`）里找`soffice`，装完不用手动配置
+- 转换时用独立的临时用户配置，不和用户正在开着的LibreOffice抢锁；每份文件首次启动要几秒到十几秒
+- LibreOffice转出的PDF与Office版式有细微差别（特殊字体、艺术字）。OCR取字不受影响；提交用的PDF如果对版式有严格要求，建议在装了Word的电脑上导出
 
 ### TeX（只有整理考试提纲才需要）
 
-考试提纲工作流用`compile_tex.py`把tex编译成PDF，需要`xelatex`。默认用MiKTeX，比TeX Live轻很多：
+考试提纲工作流用`compile_tex.py`把tex编译成PDF，需要`xelatex`：
 
 ```bash
-winget install MiKTeX.MiKTeX
+winget install MiKTeX.MiKTeX                  # Windows，比TeX Live轻很多
+brew install --cask mactex-no-gui             # macOS（BasicTeX更小，需自己用tlmgr补宏包）
+sudo apt install texlive-xetex texlive-lang-chinese   # Linux
 ```
 
-- 装完重开终端，让PATH生效；之后用`xelatex --version`确认能找到。已经装了TeX Live的也可以直接用
+- 装完重开终端，让PATH生效；之后用`xelatex --version`确认能找到。已经装了TeX Live的也可以直接用。脚本在macOS上还会到`/Library/TeX/texbin`里找
 - MiKTeX首次编译会自动下载缺少的宏包（中文需要ctex等），需要联网，可能慢几分钟；脚本在MiKTeX下会自动打开自动安装开关
 - 没装也不影响其他功能。整理提纲时没装xelatex，tex源文件仍会保存，装好后再编译
-- 中文字体用Windows自带的宋体、黑体、楷体（`fontset=windows`），所以只支持Windows
+- 中文字体：tex模板里写的是`fontset=windows`（宋体、黑体、楷体），`compile_tex.py`编译时按平台自动换成ctex的对应字体集：Windows用`windows`，macOS用`mac`（系统自带的宋体、黑体、楷体），Linux用`fandol`（随TeX Live附带的开源字体）。所以tex源文件不用改，输出JSON里的`fontset`记录了实际用的字体集。字体不同，各平台编译出的PDF版式和页数可能略有差别，小抄限页数时以当前平台编译结果为准
 
 ## 验证
 
+Windows：
+
 ```bash
-python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; print('ok')"
+python -c "import pymupdf, win32com.client, requests, docx, pptx, markdown_it, PIL; print('ok')"
 ```
 
-预期输出：`ok`
+macOS、Linux：
+
+```bash
+python3 -c "import pymupdf, requests, docx, pptx, markdown_it, PIL; print('ok')" && soffice --version
+```
+
+预期输出：`ok`（macOS、Linux还有LibreOffice的版本号）。Windows上装了Office可以不装LibreOffice，没装Office则要装LibreOffice。
 
 ## config.json
 
@@ -128,7 +165,7 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 ### build_pptx.py和convert_submission.py
 
 - `build_pptx.py`读取pre底稿里“### 第N页 标题”下的“要点”“图表”“讲稿”“备注”；讲稿和备注写进备注栏；用默认主题，不套模板；输出已存在时另存为`-2`
-- `convert_submission.py`保留标题层级、粗斜体、列表、表格、代码块、引用块和图片；公式（`$$...$$`）按文本原样保留；不添加封面、页眉页脚、目录。pdf先生成docx，再由Word导出
+- `convert_submission.py`保留标题层级、粗斜体、列表、表格、代码块、引用块和图片；公式（`$$...$$`）按文本原样保留；不添加封面、页眉页脚、目录。pdf先生成docx，再导出（Windows优先Word COM，没有Word或在macOS、Linux上用LibreOffice）
 
 ### compile_tex.py的参数
 
@@ -152,15 +189,17 @@ python -c "import pymupdf, win32com.client, requests, docx, markdown_it, PIL; pr
 
 - `ocr_cli.py`访问所选的OCR接口和（配置后）VLM服务；引擎返回的图片链接会被下载到本地
 - `check_update.py`访问`api.github.com`查询最新版本；发现有新版本时再访问`raw.githubusercontent.com`取该版本的`CHANGELOG.md`。都是只读，不上传任何数据
-- 转换Office文件时会启动PowerPoint或Word的后台实例，完成后退出；已打开同名文件时可能冲突，先关闭
+- 转换Office文件时：Windows会启动PowerPoint或Word的后台实例，完成后退出，已打开同名文件时可能冲突，先关闭；LibreOffice以无界面方式启动，用临时配置目录，结束后清理
 - 脚本只写课程文件夹和数据目录，不修改`原始资料/`里的原件；它读取的是`课程资料/`里的副本
 
 ## 常见安装问题
 
 | 现象 | 处理 |
 |---|---|
-| `缺少pywin32` | 运行上方安装命令；装完仍报错时确认用的是同一个Python |
-| 转换PPT或DOC时COM报错 | 确认已安装Office；关闭已打开的同名文件；不能用WPS代替 |
+| `缺少pywin32`（Windows） | 运行上方安装命令；装完仍报错时确认用的是同一个Python。macOS、Linux不需要pywin32，也不会看到这条 |
+| 转换PPT或DOC时COM报错 | Windows上脚本会自动退到LibreOffice；两者都没有时按提示安装其一。关闭已打开的同名文件；不能用WPS代替Office |
+| `没有找到LibreOffice` | macOS、Linux或没有Office的Windows上没装LibreOffice。按上方“LibreOffice”一节安装；也可以让用户手动另存为PDF再交给脚本 |
+| LibreOffice转换超时或没生成PDF | 首次启动慢，或文件损坏、有密码。再试一次；仍失败就用Office或手动另存为PDF |
 | OXR返回415 | 文件类型不被接受。脚本已先把Office文件转成PDF；仍出现时检查文件是否损坏 |
 | OXR超时、5xx或429 | 免费接口不稳定，同一时间只处理一个任务。脚本遇到429会等30秒再试；仍失败时稍后重新运行，只会重试失败的块 |
 | Paddle报401或403 | key无效，或今日免费额度用完。检查`paddle.api_key`；额度用完等次日0点后重新运行 |
