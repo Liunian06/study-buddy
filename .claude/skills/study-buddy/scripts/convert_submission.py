@@ -3,7 +3,7 @@
 
 docx：python-docx + markdown-it-py，保留标题层级、段落、粗斜体、行内代码、列表、表格、
       代码块、引用块、图片（相对路径）。公式（$$...$$）按原文保留为文本。
-pdf： 先生成docx，再导出：Windows优先用Word COM，没有Word则用LibreOffice；macOS、Linux用LibreOffice。
+pdf： 先生成docx，再导出：Windows依次用Word COM、WPS COM（KWPS.Application）、LibreOffice；macOS、Linux用LibreOffice。
 不自动添加封面、页眉页脚、目录；这些按作业要求另行处理。
 
 用法：python convert_submission.py 稿.md --format docx|pdf [-o 输出路径]
@@ -156,7 +156,7 @@ def convert_docx(md_path, out_path):
 
 
 def docx_to_pdf(docx_path, pdf_path):
-    """docx转PDF：Windows优先Word COM，没有就退到LibreOffice；macOS、Linux直接LibreOffice"""
+    """docx转PDF：Windows依次用Word COM、WPS COM、LibreOffice；macOS、Linux直接LibreOffice"""
     from office_compat import OfficeUnavailable, convert_to_pdf
     try:
         convert_to_pdf(docx_path, pdf_path, lambda m: print(m, file=sys.stderr))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """把课件、参考资料、往年题、作业要求转成带页码和图片转写的Markdown草稿。
 
-流程：Office转PDF（Windows用Office COM，没有则LibreOffice；Mac、Linux用LibreOffice）、切分、上传OCR引擎（OXR、Paddle或MinerU）、按页组装、下载图片、VLM转写图片、合并、校验。
+流程：Office转PDF（Windows依次用Office COM、WPS COM、LibreOffice；Mac、Linux用LibreOffice）、切分、上传OCR引擎（OXR、Paddle或MinerU）、按页组装、下载图片、VLM转写图片、合并、校验。
 用--engine选择引擎，默认取config.json里的engine，没写则用paddle（PaddleOCR-VL-1.6）。
 优先级：paddle key → oxr key（商业版）→ mineru key（精准解析）→ oxr免费接口 → mineru免登录轻量接口。paddle没填key时自动在后几档里选；mineru失败时退用oxr（有oxr key用商业版）。
 结果以JSON摘要输出到stdout，日志输出到stderr。
@@ -141,7 +141,7 @@ def load_config(data_dir, create=True):
 
 
 def office_to_pdf(src, out_pdf):
-    """Office转PDF：Windows优先Office COM，没有就退到LibreOffice；macOS、Linux直接LibreOffice。细节见office_compat.py"""
+    """Office转PDF：Windows依次用Office COM、WPS COM、LibreOffice；macOS、Linux直接LibreOffice。细节见office_compat.py"""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from office_compat import OfficeUnavailable, convert_to_pdf
     try:

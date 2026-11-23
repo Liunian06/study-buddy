@@ -4,14 +4,14 @@
 
 | 平台 | 转PPT、DOC、docx为PDF | 生成pptx |
 |---|---|---|
-| Windows | 默认Office COM（PowerPoint、Word），排版最接近原文件；没装Office或COM出错时自动退到LibreOffice | 默认PowerPoint COM；没装PowerPoint或COM出错时自动退到`python-pptx` |
+| Windows | 默认Office COM（PowerPoint、Word），排版最接近原文件；没装Office或COM出错时改用WPS COM（WPS文字`KWPS.Application`、WPS演示`KWPP.Application`），再不行退到LibreOffice | 默认PowerPoint COM；没装PowerPoint或COM出错时自动退到`python-pptx` |
 | macOS、Linux | LibreOffice（`soffice --headless`） | `python-pptx` |
 
-Windows上两者都没有时，转换步骤报错并给出安装建议；也可以让用户手动另存为PDF后再交给脚本。macOS、Linux没有Office COM，所以不装`pywin32`。
+Windows上三者（Office、WPS、LibreOffice）都没有时，转换步骤报错并给出安装建议；也可以让用户手动另存为PDF后再交给脚本。macOS、Linux没有Office/WPS COM，所以不装`pywin32`。
 
 ## 环境要求
 
-- Windows 10/11（本机验证），或macOS、Linux。Windows上建议安装Office（PowerPoint和Word，本机验证版本为16.0）；没有Office或在macOS、Linux上，需要安装LibreOffice：Windows `winget install TheDocumentFoundation.LibreOffice`，macOS `brew install --cask libreoffice`，Linux `sudo apt install libreoffice`
+- Windows 10/11（本机验证），或macOS、Linux。Windows上建议安装Office（PowerPoint和Word，本机验证版本为16.0），没装Office或COM失败时会改用WPS Office（下载 https://www.wps.cn ）或LibreOffice：Windows `winget install TheDocumentFoundation.LibreOffice`，macOS `brew install --cask libreoffice`，Linux `sudo apt install libreoffice`
 - Python 3.10以上（本机验证版本为3.14）
 - OCR引擎有三家供应商：Paddle（百度，PaddleOCR-VL-1.6）、OXR（SoMark）、MinerU，key互不通用。默认用Paddle。没填某家的key时，该家只能用免费或免登录的接口（OXR免费接口、MinerU轻量接口），Paddle没有免费路径。
 - 自动选择和失败退路用同一条优先级链：**paddle key → oxr key（商业版）→ mineru key（精准解析）→ oxr免费接口 → mineru免登录轻量接口**。没填key的档位跳过（oxr免费接口、mineru轻量接口不需要key，永远在链里）；运行从第一个可用的档位开始，某一档失败时依次退到后面的档位，退用的原因记在摘要的`warnings`里。用`--engine`切换起点，或在`config.json`里写`engine`：
@@ -52,6 +52,7 @@ winget install TheDocumentFoundation.LibreOffice   # Windows
 
 - 脚本会在PATH和各系统的默认安装位置（macOS是`/Applications/LibreOffice.app`）里找`soffice`，装完不用手动配置
 - 转换时用独立的临时用户配置，不和用户正在开着的LibreOffice抢锁；每份文件首次启动要几秒到十几秒
+- WPS COM（Windows）：没装Microsoft Office时，脚本会依次尝试WPS文字（`KWPS.Application`）和WPS演示（`KWPP.Application`，老版本可能叫`KPR.Application`）转PDF，需要装WPS Office并配合`pywin32`。WPS的ProgID和接口与Office不同但导PDF方法一致（文字`ExportAsFixedFormat(路径, 17)`、演示`SaveAs(路径, 32)`，个别WPS演示版本SaveAs不导PDF会改用`ExportAsFixedFormat(路径, 32)`）
 - LibreOffice转出的PDF与Office版式有细微差别（特殊字体、艺术字）。OCR取字不受影响；提交用的PDF如果对版式有严格要求，建议在装了Word的电脑上导出
 
 ### TeX（只有整理考试提纲才需要）
@@ -198,7 +199,7 @@ python3 -c "import pymupdf, requests, docx, pptx, markdown_it, PIL; print('ok')"
 
 - `ocr_cli.py`访问所选的OCR接口和（配置后）VLM服务；引擎返回的图片链接会被下载到本地
 - `check_update.py`访问`api.github.com`查询最新版本；发现有新版本时再访问`raw.githubusercontent.com`取该版本的`CHANGELOG.md`。都是只读，不上传任何数据
-- 转换Office文件时：Windows会启动PowerPoint或Word的后台实例，完成后退出，已打开同名文件时可能冲突，先关闭；LibreOffice以无界面方式启动，用临时配置目录，结束后清理
+- 转换Office文件时：Windows会依次启动PowerPoint/Word、WPS或多者之一的后台实例，完成后退出，已打开同名文件时可能冲突，先关闭；LibreOffice以无界面方式启动，用临时配置目录，结束后清理
 - 脚本只写课程文件夹和数据目录，不修改`原始资料/`里的原件；它读取的是`课程资料/`里的副本
 
 ## 常见安装问题
@@ -206,9 +207,9 @@ python3 -c "import pymupdf, requests, docx, pptx, markdown_it, PIL; print('ok')"
 | 现象 | 处理 |
 |---|---|
 | `缺少pywin32`（Windows） | 运行上方安装命令；装完仍报错时确认用的是同一个Python。macOS、Linux不需要pywin32，也不会看到这条 |
-| 转换PPT或DOC时COM报错 | Windows上脚本会自动退到LibreOffice；两者都没有时按提示安装其一。关闭已打开的同名文件；不能用WPS代替Office |
-| `没有找到LibreOffice` | macOS、Linux或没有Office的Windows上没装LibreOffice。按上方“LibreOffice”一节安装；也可以让用户手动另存为PDF再交给脚本 |
-| LibreOffice转换超时或没生成PDF | 首次启动慢，或文件损坏、有密码。再试一次；仍失败就用Office或手动另存为PDF |
+| 转换PPT或DOC时COM报错 | Windows上脚本会自动依次退到WPS COM、LibreOffice；三者都没有时按提示安装其一。关闭已打开的同名文件；只有WPS时也能用（WPS演示`KWPP.Application`、WPS文字`KWPS.Application`） |
+| `没有找到LibreOffice` | macOS、Linux或没有Office/WPS的Windows上没装LibreOffice。按上方“LibreOffice”一节安装；也可以让用户手动另存为PDF再交给脚本 |
+| LibreOffice转换超时或没生成PDF | 首次启动慢，或文件损坏、有密码。再试一次；仍失败就用Office/WPS或手动另存为PDF |
 | OXR返回415 | 文件类型不被接受。脚本已先把Office文件转成PDF；仍出现时检查文件是否损坏 |
 | OXR超时、5xx或429 | 免费接口不稳定，同一时间只处理一个任务。脚本遇到429会等30秒再试；仍失败时稍后重新运行，只会重试失败的块 |
 | Paddle报401或403 | key无效，或今日免费额度用完。检查`paddle.api_key`；额度用完等次日0点后重新运行 |

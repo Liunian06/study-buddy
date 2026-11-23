@@ -2,6 +2,34 @@
 
 study-buddy的版本记录。版本号规则：主版本.次版本.修订号。
 
+## [3.13.0] - 2026-11-23
+
+### 新增
+
+- WPS支持：之前Windows上转换PPT、DOC、docx为PDF只能用Microsoft Office的COM接口（PowerPoint.Application、Word.Application），只装了WPS的用户会一路退到LibreOffice。现在`office_compat.py`在Office COM失败后、退到LibreOffice之前，先试WPS的COM接口
+  - WPS的ProgID与Office不同，文字是`KWPS.Application`、演示是`KWPP.Application`（老版本可能叫`KPR.Application`，按注册表逐个探测，找到哪个用哪个），但导PDF的方法与Office一致：文字`ExportAsFixedFormat(路径, 17)`（`wdExportFormatPDF`）、演示`SaveAs(路径, 32)`（`ppSaveAsPDF`）。个别WPS演示版本的`SaveAs`不导出PDF，脚本会退用`ExportAsFixedFormat(路径, 32)`
+  - 转换失败时同样试“打开并修复”（`OpenAndRepair`），原文件不动
+  - 退路顺序变为：Office COM → WPS COM → LibreOffice。Windows上三者都没有才报错，安装建议里加上了WPS
+  - `ocr_cli.py`、`convert_submission.py`都走`office_compat.py`，所以课件转PDF和提交文件导出PDF都自动获得WPS支持，两个脚本本身不用改
+- `check_env.py`检测WPS：新增`wps_com`（`KWPP.Application`/`KPR.Application`是否注册了WPS演示、`KWPS.Application`是否注册了WPS文字），只查注册表不启动WPS；`ppt_to_pdf`、`doc_to_pdf`、`docx_to_pdf`三个capability在Office之外也算上WPS；装了WPS但缺`pywin32`时会单独提示安装
+
+### 变更
+
+- `setup.md`：Windows转换表加WPS一档，附WPS COM的ProgID和导PDF方法；环境要求、LibreOffice一节、网络与权限、常见安装问题同步改。原来“不能用WPS代替Office”的说法已删除，改为说明WPS可作为Office的替代
+- `SKILL.md`：文件结构注释和全局规则里的转换顺序同步成“Office COM → WPS COM → LibreOffice”
+- 更新反馈群二维码：文件从`assets/qrcode/group.png`换为`assets/qrcode/group.jpg`（jpg格式），有效期更新到2026-11-30（图片上写的是“11月30日前有效”），`references/community.md`里的日期和文件名、README和`SKILL.md`里的引用同步修改
+
+### 需要知道的
+
+- **没有在装WPS的机器上实测过**：开发机上没有WPS，ProgID、接口名和参数按WPS二次开发公开资料整理（`KWPS.Application`、`KWPP.Application`、`ExportAsFixedFormat`、`SaveAs`，见`setup.md`），真实转PDF的兼容性需要装了WPS的用户反馈。如果遇到“WPS COM转换失败”，脚本会自动退到LibreOffice，不影响使用
+- WPS各版本ProgID略有差异（演示有`KWPP.Application`和`KPR.Application`两种），脚本按注册表逐个探测；个别版本`SaveAs`不导出PDF时会改用`ExportAsFixedFormat`
+- `build_pptx.py`没有改：生成pptx仍优先PowerPoint COM，没有则用`python-pptx`，与WPS无关
+- 反馈群二维码这次一并换新：文件名从`group.png`改成`group.jpg`，因此引用它的文件都同步改了；社区规则里“换图时沿用这个文件名”的维护说明也更新为`group.jpg`
+
+### 迁移
+
+- 不需要迁移。已有数据不受影响；只有转换退路多了一档WPS
+
 ## [3.12.1] - 2026-11-09
 
 ### 新增

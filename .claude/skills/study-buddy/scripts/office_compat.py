@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Office文件转PDF的跨平台实现，供ocr_cli.py、convert_submission.py共用。
 
-选择顺序：
-- Windows：先用Office COM（PowerPoint、Word），排版最接近原文件；没装Office、COM报错或没装pywin32时，
-  退到LibreOffice；两者都没有才报错
-- macOS、Linux：直接用LibreOffice（soffice --headless），不需要pywin32
+选择顺序（Windows）：
+- 先用Office COM（PowerPoint、Word），排版最接近原文件
+- 没装Office、COM报错或没装pywin32时，改用WPS COM（WPS演示KWPP.Application、WPS文字KWPS.Application）
+- 再不行退到LibreOffice；三者都没有才报错
+macOS、Linux：直接用LibreOffice（soffice --headless），不需要pywin32。
+
+WPS的支持：WPS Office在Windows上注册的COM ProgID与Microsoft Office不同，文字是KWPS.Application、
+演示是KWPP.Application（老版本演示可能叫KPR.Application），但导PDF的接口与Office一致：
+文字用ExportAsFixedFormat(路径, 17)（wdExportFormatPDF=17），演示用SaveAs(路径, 32)（ppSaveAsPDF=32）。
+部分WPS演示版本没有SaveAs的PDF导出，脚本会改用ExportAsFixedFormat(路径, 32)。
 
 LibreOffice版本的限制：字体、版式与Office有细微差别（如PPT里的特殊字体、艺术字），不影响OCR取字，
 但提交用的PDF如果对版式有要求，建议在装了Office的电脑上导出。
@@ -18,6 +24,10 @@ from pathlib import Path
 
 OFFICE_PPT = {".ppt", ".pptx"}
 OFFICE_DOC = {".doc", ".docx"}
+# WPS的COM ProgID与Microsoft Office不同：文字KWPS.Application、演示KWPP.Application（老版本可能叫KPR.Application）。
+# WPS各版本的ProgID不完全一样，按列表逐个探测注册表，找到哪个用哪个
+WPS_PPT_PROGIDS = ("KWPP.Application", "KPR.Application")
+WPS_DOC_PROGIDS = ("KWPS.Application",)
 SOFFICE_TIMEOUT = 300
 IS_WINDOWS = sys.platform == "win32"
 IS_MAC = sys.platform == "darwin"
@@ -29,10 +39,31 @@ class OfficeUnavailable(RuntimeError):
 
 def install_hint():
     if IS_WINDOWS:
-        return "安装Microsoft Office（PowerPoint和Word），或安装LibreOffice：winget install TheDocumentFoundation.LibreOffice"
+        return ("安装Microsoft Office（PowerPoint和Word）、WPS Office（https://www.wps.cn 下载），"
+                "或安装LibreOffice：winget install TheDocumentFoundation.LibreOffice")
     if IS_MAC:
         return "安装LibreOffice：brew install --cask libreoffice（或到 https://www.libreoffice.org 下载）"
     return "安装LibreOffice，如 sudo apt install libreoffice（或到 https://www.libreoffice.org 下载）"
+
+
+def _first_progid(progids):
+    """从一组ProgID里返回第一个在注册表里注册了的（WPS各版本的ProgID不完全一样）。只查注册表，不启动程序"""
+    if not IS_WINDOWS:
+        return None
+    import winreg
+    for p in progids:
+        try:
+            winreg.CloseKey(winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, p))
+            return p
+        except OSError:
+            continue
+    return None
+
+
+def wps_registered():
+    """Windows上WPS文字、演示是否注册了COM。只查注册表，不启动WPS"""
+    return {"powerpoint": _first_progid(WPS_PPT_PROGIDS) is not None,
+            "word": _first_progid(WPS_DOC_PROGIDS) is not None}
 
 
 def find_soffice():
@@ -126,27 +157,79 @@ def _com_to_pdf(src, out_pdf, log):
         raise RuntimeError("Office未生成PDF")
 
 
+def _wps_to_pdf(src, out_pdf, log):
+    """Windows下用WPS COM转PDF，供没装Microsoft Office或Office COM失败时使用。
+    WPS的ProgID与Office不同（文字KWPS.Application、演示KWPP.Application/KPR.Application），
+    接口和Office一致：文字ExportAsFixedFormat(路径, 17)、演示SaveAs(路径, 32)；
+    WPS演示部分版本SaveAs不导出PDF，退用ExportAsFixedFormat(路径, 32)。
+    直接打开失败时同样试“打开并修复”，原文件不动"""
+    import win32com.client  # ImportError由调用方处理
+    src_s, out_s = str(src.resolve()), str(out_pdf.resolve())
+    if src.suffix.lower() in OFFICE_PPT:
+        progid = _first_progid(WPS_PPT_PROGIDS) or "KWPP.Application"
+        app = win32com.client.DispatchEx(progid)
+        try:
+            try:
+                pres = app.Presentations.Open(src_s, True, False, False)
+            except Exception as ex:  # noqa: BLE001
+                log(f"  WPS演示直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
+                pres = app.Presentations.Open(src_s, True, False, False, True)  # OpenAndRepair
+            try:
+                try:
+                    pres.SaveAs(out_s, 32)  # ppSaveAsPDF
+                except Exception as ex:  # noqa: BLE001
+                    log(f"  WPS演示SaveAs转PDF失败（{str(ex)[:60]}），改用ExportAsFixedFormat：{src.name}")
+                    pres.ExportAsFixedFormat(out_s, 32)  # ppSaveAsPDF
+            finally:
+                pres.Close()
+        finally:
+            app.Quit()
+    else:
+        app = win32com.client.DispatchEx("KWPS.Application")
+        app.Visible = False
+        try:
+            try:
+                doc = app.Documents.Open(src_s, ReadOnly=True)
+            except Exception as ex:  # noqa: BLE001
+                log(f"  WPS文字直接打开失败（{str(ex)[:60]}），尝试自动修复后转换：{src.name}")
+                doc = app.Documents.Open(src_s, ReadOnly=True, OpenAndRepair=True)
+            try:
+                doc.ExportAsFixedFormat(out_s, 17)  # wdExportFormatPDF
+            finally:
+                doc.Close(False)
+        finally:
+            app.Quit()
+    if not out_pdf.exists():
+        raise RuntimeError("WPS未生成PDF")
+
+
 def convert_to_pdf(src, out_pdf, log=print):
     """把ppt、pptx、doc、docx转成PDF，写到out_pdf。
     没有任何可用工具时抛OfficeUnavailable，调用方按环境错误处理；转换本身失败抛RuntimeError"""
     src, out_pdf = Path(src), Path(out_pdf)
     if src.suffix.lower() not in OFFICE_PPT | OFFICE_DOC:
         raise RuntimeError(f"不支持的Office格式：{src.suffix}")
-    com_err = None
-    if IS_WINDOWS:
+    if not IS_WINDOWS:
+        log(f"  转PDF（LibreOffice）：{src.name}")
+        libreoffice_to_pdf(src, out_pdf)
+        if not out_pdf.exists():
+            raise RuntimeError("LibreOffice未生成PDF")
+        return
+    # Windows：Office COM → WPS COM → LibreOffice，逐级退
+    for backend, name, fn in (("Office COM", "Office COM", _com_to_pdf),
+                              ("WPS COM", "WPS", _wps_to_pdf)):
+        err = None
         try:
-            _com_to_pdf(src, out_pdf, log)
+            fn(src, out_pdf, log)
             return
         except ImportError:
-            com_err = "没有安装pywin32"
-        except Exception as ex:  # noqa: BLE001  没装Office、COM启动失败、文件打不开等
-            com_err = f"Office COM转换失败（{str(ex)[:80]}）"
+            err = f"{name}需要pywin32"
+        except Exception as ex:  # noqa: BLE001  没装软件、COM启动失败、文件打不开等
+            err = f"{name}转换失败（{str(ex)[:80]}）"
         out_pdf.unlink(missing_ok=True)
         if not find_soffice():
-            raise OfficeUnavailable(f"{com_err}，也没有找到LibreOffice。" + install_hint())
-        log(f"  {com_err}，改用LibreOffice转换：{src.name}")
-    else:
-        log(f"  转PDF（LibreOffice）：{src.name}")
+            raise OfficeUnavailable(f"{err}，也没有找到LibreOffice。" + install_hint())
+        log(f"  {err}，改用LibreOffice转换：{src.name}")
     libreoffice_to_pdf(src, out_pdf)
     if not out_pdf.exists():
         raise RuntimeError("LibreOffice未生成PDF")

@@ -31,7 +31,7 @@
 请帮我安装 study-buddy 这个 skill，仓库地址：https://github.com/Liunian06/study-buddy
 
 1. 先检查当前工作目录是不是空目录（可以忽略 .claude、.agents 这类 AI 助手自己生成的隐藏目录），记下结果，第 3 步用它决定安装位置。
-2. 检查当前系统（Windows、macOS、Linux 都支持）、是否已安装 Office（PowerPoint 和 Word）或 LibreOffice（Windows 上二选一即可，macOS 和 Linux 需要 LibreOffice）、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
+2. 检查当前系统（Windows、macOS、Linux 都支持）、是否已安装 Office（PowerPoint 和 Word）、WPS Office 或 LibreOffice（Windows 上三者有其一即可，macOS 和 Linux 需要 LibreOffice）、Node.js 版本是否 >= 22.20、Python 版本是否 >= 3.10。任何一项不满足，先告诉我，不要自行安装。
 3. 安装 skill：
    - 空目录：说明我想从零开始，装在这个项目里，命令不带 -g：npx skills add Liunian06/study-buddy --skill study-buddy。skill 和之后生成的 study-buddy-data/ 都在这个目录下，方便统一管理。
    - 非空目录：说明我已经有自己的文件夹，不要把 skill 文件放进去，全局安装：npx skills add Liunian06/study-buddy --skill study-buddy -g。
@@ -47,7 +47,7 @@
 
 <br>
 
-支持 Windows、macOS 和 Linux。Windows 上装有 PowerPoint 和 Word 时默认用它们，没有时自动改用 LibreOffice；macOS 和 Linux 需要安装 [LibreOffice](https://www.libreoffice.org/)。另外需要 [Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
+支持 Windows、macOS 和 Linux。Windows 上装有 PowerPoint 和 Word 时默认用它们，没有时依次改用 WPS COM（WPS 文字 `KWPS.Application`、WPS 演示 `KWPP.Application`）和 LibreOffice；macOS 和 Linux 需要安装 [LibreOffice](https://www.libreoffice.org/)。另外需要 [Node.js](https://nodejs.org/) 22.20 及以上、Python 3.10 及以上，以及支持 Skills 的 AI 编程助手（如 [Claude Code](https://claude.com/claude-code)）。
 
 1. 安装 skill，按提示选择你使用的 AI 编程助手。装在哪里看你的情况：
 
@@ -172,7 +172,7 @@ study-buddy-data/
 
 - 默认目标是保过，不追求高分或学透；想冲高分的课可以单独设目标分
 - 考试或限时测验进行中不代答，考前复习和模拟照常帮忙
-- 转换 PPT 和 DOC、生成 pptx、导出 pdf：Windows 优先用 Office（COM 接口），没有 Office 时自动改用 LibreOffice 和 python-pptx；macOS 和 Linux 直接用 LibreOffice 和 python-pptx。LibreOffice 转出的 PDF 版式与 Office 有细微差别；macOS 和 Linux 的路径只在逻辑层面模拟验证过，欢迎反馈
+- 转换 PPT 和 DOC、生成 pptx、导出 pdf：Windows 优先用 Office（COM 接口），没有 Office 或 COM 失败时改用 WPS COM，再退到 LibreOffice 和 python-pptx；macOS 和 Linux 直接用 LibreOffice 和 python-pptx。LibreOffice 转出的 PDF 版式与 Office 有细微差别；WPS 转 PDF 的接口和 Office 一致（文字 `ExportAsFixedFormat(路径, 17)`、演示 `SaveAs(路径, 32)`），但没有在装 WPS 的机器上实测过；macOS 和 Linux 的路径只在逻辑层面模拟验证过，欢迎反馈
 - 课件会上传到 OCR 引擎（默认百度 Paddle，需要自己申请免费 key；没有时按“Paddle key → SoMark OXR key → MinerU token → OXR 免费接口 → MinerU 免登录轻量接口”的顺序选第一个可用的，某一档失败再依次退到后面的档位，免费档位速度和效果略差），图片会发给你配置的 VLM 服务商
 
 遇到问题请在 [Issues](../../issues) 留言。
@@ -187,7 +187,7 @@ study-buddy-data/
 
 扫码加入微信群“study-buddy前瞻服”，和其他用户交流用法、反馈问题。
 
-<img src=".claude/skills/study-buddy/assets/qrcode/group.png" alt="study-buddy 微信群二维码" width="220">
+<img src=".claude/skills/study-buddy/assets/qrcode/group.jpg" alt="study-buddy 微信群二维码" width="220">
 
 微信群二维码只有 7 天有效期，扫不出来或提示过期时，请扫上面的作者微信，或者到 [Issues](../../issues) 留言。
 

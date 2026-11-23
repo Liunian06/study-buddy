@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from office_compat import IS_MAC, IS_WINDOWS, find_soffice, install_hint  # noqa: E402
+from office_compat import IS_MAC, IS_WINDOWS, find_soffice, install_hint, wps_registered  # noqa: E402
 
 # 导入名 -> pip包名。这几个所有平台都必需
 REQUIRED = {"pymupdf": "pymupdf==2.0", "requests": "requests", "docx": "python-docx==1.2.0",
@@ -58,16 +58,19 @@ def main():
     pptx_lib = has_module("pptx")
     pywin32 = IS_WINDOWS and has_module("win32com")
     office = office_installed()
+    wps = wps_registered()
     com_ppt = pywin32 and office["powerpoint"]
     com_word = pywin32 and office["word"]
+    wps_ppt = pywin32 and wps["powerpoint"]  # WPS演示：KWPP.Application或KPR.Application
+    wps_word = pywin32 and wps["word"]       # WPS文字：KWPS.Application
     soffice = find_soffice()
     xelatex = tex_engine()
 
     caps = {
-        # 转PDF：Windows有Office COM（需pywin32）就用它，否则LibreOffice；ppt和doc分别看PowerPoint、Word
-        "ppt_to_pdf": bool(com_ppt or soffice),
-        "doc_to_pdf": bool(com_word or soffice),
-        "docx_to_pdf": bool(com_word or soffice),
+        # 转PDF：Windows有Office COM（需pywin32）就用它，之后依次退到WPS COM、LibreOffice
+        "ppt_to_pdf": bool(com_ppt or wps_ppt or soffice),
+        "doc_to_pdf": bool(com_word or wps_word or soffice),
+        "docx_to_pdf": bool(com_word or wps_word or soffice),
         "build_pptx": bool(com_ppt or pptx_lib),
         "exam_notes_pdf": bool(xelatex),
     }
@@ -76,14 +79,14 @@ def main():
         hint = install_hint()
         if IS_WINDOWS and (office["powerpoint"] or office["word"]) and not pywin32:
             hint = f"已装Office但缺pywin32，运行 {pip} install pywin32==312 即可；或者安装LibreOffice：winget install TheDocumentFoundation.LibreOffice"
-        optional_missing.append({"item": "LibreOffice（或Windows上的Office加pywin32）",
+        optional_missing.append({"item": "LibreOffice（或Windows上的Office/WPS加pywin32）",
                                  "affects": "转换PPT、DOC、导出PDF（pdf、docx格式的资料不受影响）",
                                  "install": hint})
     if not caps["build_pptx"]:
         optional_missing.append({"item": "python-pptx", "affects": "生成pptx",
                                  "install": f"{pip} install python-pptx==1.0.2"})
-    if IS_WINDOWS and not pywin32 and (office["powerpoint"] or office["word"]):
-        optional_missing.append({"item": "pywin32", "affects": "用Office COM转换和生成（没有它会改用LibreOffice和python-pptx，装上版式更接近原文件）",
+    if IS_WINDOWS and not pywin32 and (office["powerpoint"] or office["word"] or wps["powerpoint"] or wps["word"]):
+        optional_missing.append({"item": "pywin32", "affects": "用Office/WPS COM转换和生成（没有它会改用LibreOffice和python-pptx，装上版式更接近原文件）",
                                  "install": f"{pip} install pywin32==312"})
     if not caps["exam_notes_pdf"]:
         optional_missing.append({"item": "TeX（xelatex）", "affects": "编译考试提纲，只有整理提纲时才需要，到时再装",
@@ -95,6 +98,7 @@ def main():
         "missing_required": ({"packages": missing, "install": f"{pip} install {' '.join(missing)}"}
                              if missing else None),
         "found": {"office_com": {"pywin32": pywin32, **office} if IS_WINDOWS else None,
+                  "wps_com": {"pywin32": pywin32, **wps} if IS_WINDOWS else None,
                   "libreoffice": soffice, "python_pptx": pptx_lib, "xelatex": xelatex},
         "capabilities": caps,
         "missing_optional": optional_missing,
